@@ -267,28 +267,32 @@ export function simulateChase300(squad: (Player | null)[]): UnifiedMatchResult {
   const oversBowledString = `${Math.floor(ballsBowled / 6)}.${ballsBowled % 6}`;
   const isWin = totalRuns >= TARGET;
 
-  // Generate Post-Match Team Analysis & Savage Verdicts
+ // Generate Post-Match Team Analysis & Savage Verdicts
   let verdict = '';
   let comment = '';
 
   if (unprepared) {
     verdict = 'UNPREPARED';
     comment = 'A chase like this was over before it began. You showed up to a knife fight without a weapon.';
-  } else if (isWin) {
+  } else if (isWin || totalRuns >= 300) {
     verdict = 'GALACTIC IMMORTALITY';
     comment = 'EARTH IS SAVED! You dragged this squad of mortals to a miracle against superior alien genetics. Absolute alpha mentality. You just etched this legendary XI into the stars forever!';
-  } else if (totalWickets >= 10 || totalRuns < 150) {
-    verdict = 'ABSOLUTE DISGRACE';
-    comment = 'What a spineless display. You drafted a bunch of cowards who completely surrendered to superior alien genetics. You call yourself a cricket fan? You just handed Earth over on a silver platter. Absolute garbage.';
-  } else if (totalRuns >= 150 && totalRuns <= 239) {
-    verdict = 'PATHETIC JOKE';
-    comment = 'A disgraceful, toothless chase. You were chasing 300 to save the planet and your cowards batted like they were trying to draw a Day 5 Test match against superior alien genetics. Did you even try to win, or did you just want a front-row seat to the apocalypse? Shameful.';
-  } else if (totalRuns >= 240 && totalRuns <= 285) {
-    verdict = 'USELESS STAT-PADDING';
-    comment = 'Oh, congratulations on scoring 240+ in a 300 chase. Do you want a participation trophy? Your squad got bullied by alien genetics, and your batters just stat-padded while the world burned. Pathetic.';
-  } else {
+  } else if (totalRuns >= 286) { 
+    // Scores 286 to 299
     verdict = 'ULTIMATE CHOKEJOB';
     comment = 'Agonizing. Almost everyone fulfilled their duties against the alien genetics... except for one or two absolute chokers in your squad who bottled it when Earth needed them most. Look at your scorecard. Identify the frauds. You know who they are.';
+  } else if (totalRuns >= 240) { 
+    // Scores 240 to 285
+    verdict = 'USELESS STAT-PADDING';
+    comment = 'Oh, congratulations on scoring 240+ in a 300 chase. Do you want a participation trophy? Your squad got bullied by alien genetics, and your batters just stat-padded while the world burned. Pathetic.';
+  } else if (totalRuns >= 150) { 
+    // Scores 150 to 239
+    verdict = 'PATHETIC JOKE';
+    comment = 'A disgraceful, toothless chase. You were chasing 300 to save the planet and your cowards batted like they were trying to draw a Day 5 Test match against superior alien genetics. Did you even try to win, or did you just want a front-row seat to the apocalypse? Shameful.';
+  } else { 
+    // Scores below 150 (Total Collapse)
+    verdict = 'ABSOLUTE DISGRACE';
+    comment = 'What a spineless display. You drafted a bunch of cowards who completely surrendered to superior alien genetics. You call yourself a cricket fan? You just handed Earth over on a silver platter. Absolute garbage.';
   }
 
   const teamAnalysis = { verdict, comment };
