@@ -24,8 +24,8 @@ export const PLAYERS: Player[] = [
     "role": "Batter",
     "battingPosition": 3,
     "allowedSlots": [3, 4],
-    "batRating": 89,
-    "powRating": 97,
+    "batRating": 87,
+    "powRating": 92,
     "bwlRating": 5
   },
   {
@@ -211,9 +211,9 @@ export const PLAYERS: Player[] = [
     "role": "WK",
     "battingPosition": 7,
     "allowedSlots": [6, 7, 8],
-    "batRating": 75,
-    "powRating": 86,
-    "bwlRating": 5
+    "batRating": 89,
+    "powRating": 94,
+    "bwlRating": 10
   },
   {
     "id": "csk_06",
@@ -618,9 +618,9 @@ export const PLAYERS: Player[] = [
     "role": "Bowler",
     "battingPosition": 9,
     "allowedSlots": [8, 9, 10, 11],
-    "batRating": 35,
-    "powRating": 45,
-    "bwlRating": 87
+    "batRating": 45,
+    "powRating": 35,
+    "bwlRating": 94
   },
   {
     "id": "rr_01",
