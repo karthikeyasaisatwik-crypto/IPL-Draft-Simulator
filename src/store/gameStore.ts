@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { GameMode, DraftedTeam, MatchState, CampaignState, Player, UnifiedMatchResult } from '../engine/types';
+import type { GameMode, DraftedTeam, MatchState, CampaignState, Player, UnifiedMatchResult, PitchType } from '../engine/types';
 import { FRANCHISE_CODES, PLAYERS } from '../data/players';
 import { simulateChase300 } from '../engine/simulation';
 import { generateAIOpponent } from '../engine/aiDraft';
@@ -9,9 +9,11 @@ import { simulateH2HMatch } from '../engine/h2hSimulation';
 // APPLICATION SCREENS
 // ============================================================
 
-export type AppScreen = 'MAIN_MENU' | 'DRAFT' | 'TICKER' | 'SIMULATION' | 'MATCH' | 'RESULT' | 'CAMPAIGN';
+export type AppScreen = 'MAIN_MENU' | 'DRAFT_SETUP' | 'DRAFT' | 'COACH_DASHBOARD' | 'TICKER' | 'SIMULATION' | 'MATCH' | 'RESULT' | 'CAMPAIGN' | 'CAREER_HUB';
 
 const SQUAD_SIZE = 11;
+
+const PITCH_TYPES: PitchType[] = ['FLAT', 'DUSTY', 'GREEN', 'BALANCED'];
 
 // ============================================================
 // GAME STORE
@@ -30,17 +32,34 @@ interface GameStore {
   difficulty: 'EASY' | 'HARD';
   setDifficulty: (diff: 'EASY' | 'HARD') => void;
 
+  // — Pitch Condition —
+  currentPitch: PitchType | null;
+
   chase300HighScore: number;
   updateChase300HighScore: (score: number) => void;
 
-  // — Draft State —
+  // — Draft State (Single Player) —
   draftedSquad: (Player | null)[];  // exactly 11 slots, index 0 = batting position 1
   draftPlayer: (player: Player, slotIndex: number) => void;
   removeFromSquad: (slotIndex: number) => void;
   clearSquad: () => void;
+  startCareer: () => void;
 
   playerTeam: DraftedTeam | null;
   setPlayerTeam: (team: DraftedTeam) => void;
+
+  // — Dual Player (Pass & Play) State —
+  isDualPlayerMode: boolean;
+  teamAName: string;
+  teamBName: string;
+  teamASquad: (Player | null)[];
+  teamBSquad: (Player | null)[];
+  currentDraftingTeam: 'A' | 'B';
+  setDualPlayerMode: (enabled: boolean) => void;
+  setTeamNames: (nameA: string, nameB: string) => void;
+  startDualDraft: () => void;
+  draftPlayerDual: (player: Player, slotIndex: number) => void;
+  startDualH2HSimulation: (teamABatsFirst: boolean) => void;
 
   // — Spin Mechanic —
   currentSpunTeam: string | null;
@@ -80,6 +99,16 @@ export const useGameStore = create<GameStore>((set, get) => ({
   lastMatchResult: null,
   campaignState: null,
   difficulty: 'EASY',
+  currentPitch: null,
+
+  // — Dual Player defaults —
+  isDualPlayerMode: false,
+  teamAName: 'Team 1',
+  teamBName: 'Team 2',
+  teamASquad: emptySquad(),
+  teamBSquad: emptySquad(),
+  currentDraftingTeam: 'A' as const,
+
   setDifficulty: (diff) => set({ difficulty: diff }),
   chase300HighScore: parseInt(localStorage.getItem('chase300HighScore') || '0', 10),
   updateChase300HighScore: (score) => set((state) => {
@@ -92,10 +121,19 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
   setScreen: (screen) => set({ currentScreen: screen }),
 
-  selectMode: (mode) =>
+  selectMode: (mode) => {
+    // H2H goes to the setup screen first; other modes go directly to draft
+    const screen = mode === 'H2H' ? 'DRAFT_SETUP' : 'DRAFT';
+    
+    // Generate a random pitch for H2H mode
+    const pitch = mode === 'H2H' 
+      ? PITCH_TYPES[Math.floor(Math.random() * PITCH_TYPES.length)]
+      : null;
+
     set({
       selectedMode: mode,
-      currentScreen: 'DRAFT',
+      currentScreen: screen,
+      currentPitch: pitch,
       // Reset stale state from any previous session
       draftedSquad: emptySquad(),
       playerTeam: null,
@@ -103,9 +141,17 @@ export const useGameStore = create<GameStore>((set, get) => ({
       matchState: null,
       lastMatchResult: null,
       campaignState: null,
-    }),
+      // Reset dual player state
+      isDualPlayerMode: false,
+      teamAName: 'Team 1',
+      teamBName: 'Team 2',
+      teamASquad: emptySquad(),
+      teamBSquad: emptySquad(),
+      currentDraftingTeam: 'A' as const,
+    });
+  },
 
-  // — Draft Actions —
+  // — Draft Actions (Single Player) —
   // slotIndex is 0-based (index into the 11-element array).
   // The UI maps batting position N to index N-1.
   draftPlayer: (player, slotIndex) =>
@@ -127,6 +173,71 @@ export const useGameStore = create<GameStore>((set, get) => ({
   clearSquad: () => set({ draftedSquad: emptySquad(), currentSpunTeam: null }),
 
   setPlayerTeam: (team) => set({ playerTeam: team }),
+
+  // — Dual Player Actions —
+  setDualPlayerMode: (enabled) => set({ isDualPlayerMode: enabled }),
+
+  setTeamNames: (nameA, nameB) => set({ teamAName: nameA, teamBName: nameB }),
+
+  startDualDraft: () => set({
+    currentScreen: 'DRAFT',
+    teamASquad: emptySquad(),
+    teamBSquad: emptySquad(),
+    currentDraftingTeam: 'A' as const,
+    currentSpunTeam: null,
+  }),
+
+  draftPlayerDual: (player, slotIndex) =>
+    set((state) => {
+      const team = state.currentDraftingTeam;
+      const currentSquad = team === 'A' ? state.teamASquad : state.teamBSquad;
+
+      if (slotIndex < 0 || slotIndex >= SQUAD_SIZE) return state;
+      if (currentSquad[slotIndex] !== null) return state; // slot occupied
+
+      const next = [...currentSquad];
+      next[slotIndex] = player;
+
+      // Compute total players drafted
+      const teamAFilled = (team === 'A' ? next : state.teamASquad).filter(Boolean).length;
+      const teamBFilled = (team === 'B' ? next : state.teamBSquad).filter(Boolean).length;
+      const nextPickIndex = teamAFilled + teamBFilled;
+
+      // If draft is complete, keep current team (doesn't matter)
+      let nextTeam = state.currentDraftingTeam;
+      if (nextPickIndex < SQUAD_SIZE * 2) {
+        // Strict alternating order (A, B, A, B)
+        if (nextPickIndex % 2 === 0) {
+          nextTeam = 'A';
+        } else {
+          nextTeam = 'B';
+        }
+      }
+
+      return {
+        ...(team === 'A' ? { teamASquad: next } : { teamBSquad: next }),
+        currentDraftingTeam: nextTeam,
+        currentSpunTeam: null, // reset spin after pick
+      };
+    }),
+
+  startDualH2HSimulation: (teamABatsFirst) => {
+    const state = get();
+    const squadA = state.teamASquad.filter(Boolean) as Player[];
+    const squadB = state.teamBSquad.filter(Boolean) as Player[];
+
+    const result = simulateH2HMatch(
+      squadA, squadB,
+      state.teamAName, state.teamBName,
+      teamABatsFirst,
+      state.currentPitch || 'BALANCED'
+    );
+
+    set({
+      lastMatchResult: result,
+      currentScreen: 'TICKER',
+    });
+  },
 
   // — Spin Mechanic —
   spinForTeam: () => {
@@ -166,7 +277,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const { aiSquad } = generateAIOpponent(userTeamName, availablePlayers);
 
     // 3. Simulate Match
-    const result = simulateH2HMatch(userSquad, aiSquad, 'YOUR XI', 'AI XI', userBatsFirst);
+    const result = simulateH2HMatch(
+      userSquad, aiSquad, 'YOUR XI', 'AI XI', userBatsFirst, state.currentPitch || 'BALANCED'
+    );
 
     set({
       lastMatchResult: result,
@@ -190,5 +303,14 @@ export const useGameStore = create<GameStore>((set, get) => ({
       matchState: null,
       lastMatchResult: null,
       campaignState: null,
+      // Reset dual player state
+      isDualPlayerMode: false,
+      teamAName: 'Team 1',
+      teamBName: 'Team 2',
+      teamASquad: emptySquad(),
+      teamBSquad: emptySquad(),
+      currentDraftingTeam: 'A' as const,
     }),
+
+  startCareer: () => set({ currentScreen: 'CAREER_HUB' }),
 }));

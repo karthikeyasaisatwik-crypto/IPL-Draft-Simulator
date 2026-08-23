@@ -1,6 +1,7 @@
 import { useState } from "react";
-import { Swords, Shield, Target, ChevronRight, Zap, Trophy } from "lucide-react";
+import { Swords, Shield, Target, ChevronRight, Zap, Trophy, ClipboardList } from "lucide-react";
 import { useGameStore } from "../../store/gameStore";
+import { useCoachStore } from "../../store/coachStore";
 import type { GameMode } from "../../engine/types";
 import { Logo } from "../Logo";
 
@@ -64,13 +65,16 @@ export default function MainMenu() {
       </div>
 
       {/* 3. GAME CARDS (Balanced Grid with guaranteed vertical height and spacing) */}
-      <div className="w-full max-w-6xl mx-auto my-8 px-2 shrink-0">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 lg:gap-8 items-stretch w-full">
+      <div className="w-full max-w-7xl mx-auto my-8 px-2 shrink-0">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 lg:gap-6 items-stretch w-full">
           
           {/* Card 1: H2H */}
           <div
             className="bg-slate-900/90 border border-slate-800 hover:border-indigo-500/50 rounded-2xl p-6 flex flex-col justify-between transition-all duration-300 hover:shadow-[0_0_25px_rgba(99,102,241,0.25)] hover:-translate-y-1 cursor-pointer group"
-            onClick={() => handleSelect("H2H")}
+            onClick={() => {
+              useCoachStore.getState().setCoachMode(false);
+              handleSelect("H2H");
+            }}
           >
             <div>
               <div className="w-12 h-12 rounded-xl flex items-center justify-center mb-4 text-white shadow-md bg-gradient-to-br from-indigo-500 to-purple-600">
@@ -78,7 +82,7 @@ export default function MainMenu() {
               </div>
               <span className="text-[11px] font-extrabold uppercase tracking-widest text-indigo-400 mb-1 block">Head to Head</span>
               <h2 className="text-xl md:text-2xl font-black text-white mb-2">H2H Exhibition</h2>
-              <p className="text-slate-400 text-xs leading-relaxed mb-4">Draft your dream XI • Watch the match unfold with a full ball-by-ball sim.</p>
+              <p className="text-slate-400 text-xs leading-relaxed mb-4">Draft your dream XI. Watch the match unfold with a full ball-by-ball sim.</p>
               <ul className="space-y-2 mb-6 w-full text-xs text-slate-300">
                 <li className="flex items-center gap-2"><Shield className="w-3.5 h-3.5 shrink-0 text-indigo-400" /><span>AI drafts opponent XI</span></li>
                 <li className="flex items-center gap-2"><Shield className="w-3.5 h-3.5 shrink-0 text-indigo-400" /><span>2-innings match</span></li>
@@ -90,7 +94,34 @@ export default function MainMenu() {
             </div>
           </div>
 
-          {/* Card 2: Gauntlet */}
+          {/* Card 2: Coach Mode */}
+          <div
+            className="bg-slate-900/90 border border-slate-800 hover:border-rose-500/50 rounded-2xl p-6 flex flex-col justify-between transition-all duration-300 hover:shadow-[0_0_25px_rgba(244,63,94,0.25)] hover:-translate-y-1 cursor-pointer group"
+            onClick={() => {
+              useCoachStore.getState().setCoachMode(true);
+              selectMode("H2H");
+              useGameStore.setState({ currentScreen: "DRAFT" });
+            }}
+          >
+            <div>
+              <div className="w-12 h-12 rounded-xl flex items-center justify-center mb-4 text-white shadow-md bg-gradient-to-br from-rose-500 to-orange-500">
+                <ClipboardList className="w-6 h-6" />
+              </div>
+              <span className="text-[11px] font-extrabold uppercase tracking-widest text-rose-400 mb-1 block">Tactical Mode</span>
+              <h2 className="text-xl md:text-2xl font-black text-white mb-2">Coach Mode</h2>
+              <p className="text-slate-400 text-xs leading-relaxed mb-4">Manage tactics mid-match. Pause at Powerplay and Death to adjust your mentality.</p>
+              <ul className="space-y-2 mb-6 w-full text-xs text-slate-300">
+                <li className="flex items-center gap-2"><Shield className="w-3.5 h-3.5 shrink-0 text-rose-400" /><span>Mid-match interventions</span></li>
+                <li className="flex items-center gap-2"><Shield className="w-3.5 h-3.5 shrink-0 text-rose-400" /><span>Batting & bowling tactics</span></li>
+                <li className="flex items-center gap-2"><Shield className="w-3.5 h-3.5 shrink-0 text-rose-400" /><span>Phase-by-phase control</span></li>
+              </ul>
+            </div>
+            <div className="mt-auto w-full py-2.5 px-4 rounded-xl font-bold text-xs bg-rose-500/10 border border-rose-500/30 text-rose-300 group-hover:bg-rose-600 group-hover:text-white flex items-center justify-center gap-1.5 transition-all">
+              <span>Select Mode</span><ChevronRight className="w-4 h-4" />
+            </div>
+          </div>
+
+          {/* Card 3: Gauntlet */}
           <div
             className="bg-slate-900/90 border border-slate-800 rounded-2xl p-6 flex flex-col justify-between opacity-70 cursor-not-allowed grayscale"
             onClick={() => alert("IPL Gauntlet Mode is Coming Soon!")}
@@ -113,10 +144,13 @@ export default function MainMenu() {
             </div>
           </div>
 
-          {/* Card 3: Chase 300 */}
+          {/* Card 4: Chase 300 */}
           <div
             className="bg-slate-900/90 border border-slate-800 hover:border-emerald-500/50 rounded-2xl p-6 flex flex-col justify-between transition-all duration-300 hover:shadow-[0_0_25px_rgba(16,185,129,0.25)] hover:-translate-y-1 cursor-pointer group"
-            onClick={() => handleSelect("CHASE_300")}
+            onClick={() => {
+              useCoachStore.getState().setCoachMode(false);
+              handleSelect("CHASE_300");
+            }}
           >
             <div>
               <div className="w-12 h-12 rounded-xl flex items-center justify-center mb-4 text-white shadow-md bg-gradient-to-br from-emerald-500 to-cyan-500">
@@ -135,8 +169,30 @@ export default function MainMenu() {
               <span>Select Mode</span><ChevronRight className="w-4 h-4" />
             </div>
           </div>
+          </div>
         </div>
-      </div>
+
+        {/* CAREER MODE BANNER */}
+        <div className="w-full max-w-7xl mx-auto mb-8 px-2 shrink-0">
+          <div 
+            onClick={() => useGameStore.getState().startCareer()}
+            className="w-full bg-gradient-to-r from-slate-900 to-slate-900 border border-amber-500/30 hover:border-amber-400/80 rounded-2xl p-6 md:p-8 flex flex-col md:flex-row items-center justify-between cursor-pointer group transition-all duration-300 hover:shadow-[0_0_30px_rgba(251,191,36,0.2)]"
+          >
+            <div className="flex items-center gap-6 mb-4 md:mb-0">
+              <div className="w-16 h-16 rounded-2xl flex items-center justify-center text-white shadow-lg bg-gradient-to-br from-amber-500 to-orange-600 shrink-0">
+                <Trophy className="w-8 h-8" />
+              </div>
+              <div>
+                <span className="text-[11px] font-extrabold uppercase tracking-widest text-amber-400 mb-1 block">Single-Player RPG</span>
+                <h2 className="text-2xl md:text-3xl font-black text-white mb-2 group-hover:text-amber-400 transition-colors">The Long Innings</h2>
+                <p className="text-slate-400 text-sm max-w-2xl">Start as an 18-year-old rookie. Balance academics, parental expectations, finances, and dressing room politics on your journey to the top. A fully isolated narrative RPG experience.</p>
+              </div>
+            </div>
+            <div className="py-3 px-6 rounded-xl font-bold text-sm bg-amber-500/10 border border-amber-500/30 text-amber-400 group-hover:bg-amber-500 group-hover:text-slate-900 flex items-center gap-2 transition-all shrink-0">
+              <span>Start Career</span><ChevronRight className="w-5 h-5" />
+            </div>
+          </div>
+        </div>
 
       {/* 4. RULES & RATINGS (Dedicated section positioned cleanly below cards) */}
       <div className="w-full max-w-3xl mx-auto mb-8 flex flex-col items-center px-4 shrink-0">

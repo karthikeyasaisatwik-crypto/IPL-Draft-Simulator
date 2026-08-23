@@ -35,6 +35,11 @@ export default function Scorecard() {
         <h1 className={`text-4xl font-black mb-2 ${result.isWin ? 'text-green' : 'text-red'}`} style={{ textTransform: 'uppercase', letterSpacing: '0.05em' }}>
           {result.matchSummary}
         </h1>
+        {result.pitchType && (
+          <p className="text-sm font-semibold tracking-wider text-slate-400 mb-2">
+            PITCH CONDITIONS: {result.pitchType}
+          </p>
+        )}
         {result.teamAnalysis.verdict && (
           <p className="text-xl font-bold text-accent-gold mb-2">
             {result.teamAnalysis.verdict}

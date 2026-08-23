@@ -232,9 +232,9 @@ export const PLAYERS: Player[] = [
     "team": "CSK",
     "role": "All-Rounder",
     "battingPosition": 6,
-    "allowedSlots": [6, 7],
+    "allowedSlots": [6, 7, 8],
     "batRating": 65,
-    "powRating": 82,
+    "powRating": 77,
     "bwlRating": 62
   },
   {
@@ -641,7 +641,7 @@ export const PLAYERS: Player[] = [
     "battingPosition": 3,
     "allowedSlots": [3, 4, 5],
     "batRating": 70,
-    "powRating": 75,
+    "powRating": 64,
     "bwlRating": 5
   },
   {
@@ -1036,9 +1036,9 @@ export const PLAYERS: Player[] = [
     "role": "All-Rounder",
     "battingPosition": 7,
     "allowedSlots": [7, 8, 9],
-    "batRating": 68,
+    "batRating": 69,
     "powRating": 78,
-    "bwlRating": 92
+    "bwlRating": 82
   },
   {
     "id": "lsg_11",
@@ -1245,8 +1245,8 @@ export const PLAYERS: Player[] = [
     "role": "Batter",
     "battingPosition": 3,
     "allowedSlots": [3, 4],
-    "batRating": 87,
-    "powRating": 82,
+    "batRating": 89,
+    "powRating": 83,
     "bwlRating": 15
   },
   {

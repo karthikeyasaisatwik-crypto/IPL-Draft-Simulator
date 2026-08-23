@@ -78,10 +78,15 @@ export function evaluateChase300Squad(squad: (Player | null)[]): SquadBalanceRes
 // CORE SIMULATION LOOP
 // ============================================================
 
-export function simulateChase300(squad: (Player | null)[]): UnifiedMatchResult {
-  const TARGET = 300;
+export function simulateChase300(
+  squad: (Player | null)[], 
+  customTarget?: number, 
+  customOppBowling?: number,
+  bowlingSquad?: Player[]
+): UnifiedMatchResult {
+  const TARGET = customTarget ?? 300;
   const MAX_BALLS = 120;
-  const OPPOSITION_BOWLING_RATING = 90;
+  const OPPOSITION_BOWLING_RATING = customOppBowling ?? 90;
 
   // Initialize stats tracking
   const players = squad.filter(Boolean) as Player[];
@@ -132,8 +137,29 @@ export function simulateChase300(squad: (Player | null)[]): UnifiedMatchResult {
     const rrr = (runsRequired / ballsRemaining) * 6;
 
     // Effective Ratings
-    const effectiveBat = striker.player.batRating * batRatingPenalty;
-    const effectivePow = striker.player.powRating * moraleMultiplier;
+    let effectiveBat = striker.player.batRating * batRatingPenalty;
+    let effectivePow = striker.player.powRating * moraleMultiplier;
+
+    const nonStriker = playerStats[nonStrikerIndex];
+    const strikerEffects = (striker.player as any).activeSkillEffects;
+    const nonStrikerEffects = (nonStriker.player as any).activeSkillEffects;
+    
+    if (strikerEffects) {
+      for (const eff of strikerEffects) {
+        if (eff.type === 'chasing_boost') {
+          effectivePow *= eff.magnitude;
+          effectiveBat *= eff.magnitude;
+        }
+      }
+    }
+    if (nonStrikerEffects) {
+      for (const eff of nonStrikerEffects) {
+        if (eff.type === 'partner_boost') {
+          effectivePow *= eff.magnitude;
+          effectiveBat *= eff.magnitude;
+        }
+      }
+    }
 
     // Base probabilities (Global Probability Rebalance)
     let probWicket = 0.038;
@@ -219,7 +245,8 @@ export function simulateChase300(squad: (Player | null)[]): UnifiedMatchResult {
     striker.balls++;
     if (isWicket) {
       totalWickets++;
-      striker.dismissal = generateDismissalText(striker.player.batRating);
+      const effectiveOppSquad = bowlingSquad || (customTarget ? DISTRICT_OPPONENT_SQUAD : undefined);
+      striker.dismissal = generateDismissalText(striker.player.batRating, effectiveOppSquad);
       currentOverLog.push('W');
       if (totalWickets < 10 && nextBatterIndex < 11) {
         strikerIndex = nextBatterIndex;
@@ -322,19 +349,53 @@ export function simulateChase300(squad: (Player | null)[]): UnifiedMatchResult {
   return {
     innings: [inningsResult],
     isWin,
-    matchSummary: isWin ? 'Target chased successfully!' : `Failed to chase 300 (Fell short by ${TARGET - totalRuns} runs)`,
+    matchSummary: isWin ? `Chased down ${TARGET} successfully!` : `Failed to chase ${TARGET} (Fell short by ${TARGET - totalRuns} run${(TARGET - totalRuns) === 1 ? '' : 's'})`,
     teamAnalysis,
     manOfTheMatch: motm
   };
 }
 
-function generateDismissalText(batRating: number): string {
+const DISTRICT_OPPONENT_SQUAD: Player[] = [
+  'Vikram Deshmukh', 'Rohan Menon', 'Farhan Sheikh', 'Manoj Pillai', 
+  'Devendra Chauhan', 'Aryan Kapoor', 'Rahul Verma', 'Nikhil Reddy',
+  'Tanmay Joshi', 'Imran Qureshi', 'Amit Trivedi'
+].map((name, i) => ({
+  id: `opp_${i}`,
+  name,
+  team: 'District XI',
+  role: i < 5 ? 'Batter' : i < 8 ? 'All-Rounder' : 'Bowler',
+  battingPosition: i + 1,
+  allowedSlots: [i + 1],
+  batRating: 60,
+  powRating: 60,
+  bwlRating: 70
+}));
+
+function generateDismissalText(batRating: number, bowlingSquad?: Player[]): string {
+  if (bowlingSquad && bowlingSquad.length > 0) {
+    const oppBowlers = bowlingSquad.filter(p => p.role === 'Bowler' || p.role === 'All-Rounder');
+    const bowlerPool = oppBowlers.length > 0 ? oppBowlers : bowlingSquad;
+    const bowler = bowlerPool[Math.floor(Math.random() * bowlerPool.length)];
+    const fielder = bowlingSquad[Math.floor(Math.random() * bowlingSquad.length)];
+    const oppKeeper = bowlingSquad.find(p => p.role === 'WK');
+    const keeperName = oppKeeper ? oppKeeper.name : fielder.name;
+
+    const rand = Math.random();
+    if (batRating < 60) {
+      return rand > 0.5 ? `b ${bowler.name}` : `lbw b ${bowler.name}`;
+    } else {
+      if (rand < 0.50) return `c ${fielder.name} b ${bowler.name}`;
+      if (rand < 0.70) return `b ${bowler.name}`;
+      if (rand < 0.85) return `lbw b ${bowler.name}`;
+      if (rand < 0.93) return `run out (${fielder.name})`;
+      return `st ${keeperName} b ${bowler.name}`;
+    }
+  }
+
   const rand = Math.random();
   if (batRating < 60) {
-    // Tailenders get bowled/lbw more often
     return rand > 0.5 ? `b Alien Bowler` : `lbw b Alien Bowler`;
   } else {
-    // Proper batters get caught/stumped more
     if (rand < 0.40) return `c Alien Fielder b Alien Bowler`;
     if (rand < 0.60) return `b Alien Bowler`;
     if (rand < 0.75) return `lbw b Alien Bowler`;

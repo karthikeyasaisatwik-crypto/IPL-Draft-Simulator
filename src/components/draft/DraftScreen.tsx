@@ -10,16 +10,14 @@ import {
   Target,
   Users,
   RotateCw,
+  ClipboardList,
 } from 'lucide-react';
 import { useGameStore } from '../../store/gameStore';
+import { useCoachStore } from '../../store/coachStore';
 import { PLAYERS, getStarRating, getFranchiseColor, getFranchiseName, formatSlotRange } from '../../data/players';
 import type { Player, PlayerRole } from '../../engine/types';
 import CoinTossModal from './CoinTossModal';
 import AlienMissionModal from './AlienMissionModal';
-
-// ============================================================
-// CONSTANTS
-// ============================================================
 
 const SQUAD_SIZE = 11;
 
@@ -43,21 +41,13 @@ const MODE_TITLES: Record<string, { icon: React.ReactNode; label: string }> = {
   CHASE_300: { icon: <Target className="w-5 h-5" />, label: 'Chase 300' },
 };
 
-// ============================================================
-// STAT COLOUR HELPER
-// ============================================================
-
 function statColor(value: number): string {
-  if (value >= 90) return '#a855f7'; // purple
-  if (value >= 80) return '#22c55e'; // green
-  if (value >= 65) return '#eab308'; // yellow
-  if (value >= 40) return '#94a3b8'; // slate
-  return '#64748b'; // dim
+  if (value >= 90) return '#a855f7';
+  if (value >= 80) return '#22c55e';
+  if (value >= 65) return '#eab308';
+  if (value >= 40) return '#94a3b8';
+  return '#64748b';
 }
-
-// ============================================================
-// SUB-COMPONENTS
-// ============================================================
 
 function RoleBadge({ role }: { role: PlayerRole }) {
   return (
@@ -95,10 +85,6 @@ function StarDots({ player }: { player: Player }) {
   );
 }
 
-// ============================================================
-// SLOT SELECTION MODAL
-// ============================================================
-
 function SlotModal({
   player,
   availableSlots,
@@ -106,7 +92,7 @@ function SlotModal({
   onClose,
 }: {
   player: Player;
-  availableSlots: number[]; // 1-indexed batting positions that are open
+  availableSlots: number[];
   onSelect: (slotIndex: number) => void;
   onClose: () => void;
 }) {
@@ -154,7 +140,7 @@ function SlotModal({
               className="slot-modal-btn"
               whileHover={{ scale: 1.08, boxShadow: '0 0 20px rgba(245,158,11,0.3)' }}
               whileTap={{ scale: 0.95 }}
-              onClick={() => onSelect(slot - 1)} // convert to 0-index
+              onClick={() => onSelect(slot - 1)}
             >
               <span className="slot-modal-btn-num">{slot}</span>
               <span className="slot-modal-btn-label">Slot {slot}</span>
@@ -172,10 +158,6 @@ function SlotModal({
   );
 }
 
-// ============================================================
-// MAIN DRAFT SCREEN COMPONENT
-// ============================================================
-
 export default function DraftScreen() {
   const selectedMode = useGameStore((s) => s.selectedMode);
   const difficulty = useGameStore((s) => s.difficulty);
@@ -183,32 +165,68 @@ export default function DraftScreen() {
   const currentSpunTeam = useGameStore((s) => s.currentSpunTeam);
   const spinForTeam = useGameStore((s) => s.spinForTeam);
   const clearSpunTeam = useGameStore((s) => s.clearSpunTeam);
-  const squad = useGameStore((s) => s.draftedSquad);
-  const draftPlayer = useGameStore((s) => s.draftPlayer);
+  const currentPitch = useGameStore((s) => s.currentPitch);
+  
+  // Single Player State
+  const singleSquad = useGameStore((s) => s.draftedSquad);
+  const draftPlayerSingle = useGameStore((s) => s.draftPlayer);
 
-  // — Modal state —
+  // Dual Player State
+  const isDual = useGameStore((s) => s.isDualPlayerMode);
+  const teamAName = useGameStore((s) => s.teamAName);
+  const teamBName = useGameStore((s) => s.teamBName);
+  const teamASquad = useGameStore((s) => s.teamASquad);
+  const teamBSquad = useGameStore((s) => s.teamBSquad);
+  const currentDraftingTeam = useGameStore((s) => s.currentDraftingTeam);
+  const draftPlayerDual = useGameStore((s) => s.draftPlayerDual);
+  
+  // UI State for viewing the other team in dual mode
+  const [viewingTeam, setViewingTeam] = useState<'A' | 'B'>(currentDraftingTeam);
+
+  // Modals
   const [selectedPlayer, setSelectedPlayer] = useState<Player | null>(null);
   const [isSpinning, setIsSpinning] = useState(false);
   const [showCoinToss, setShowCoinToss] = useState(false);
   const [showAlienMission, setShowAlienMission] = useState(false);
-  const [respinsRemaining, setRespinsRemaining] = useState(1);
+  
+  // Respin State
+  const [teamARespins, setTeamARespins] = useState(1);
+  const [teamBRespins, setTeamBRespins] = useState(1);
+  const [singleRespins, setSingleRespins] = useState(1);
+  
+  const respinsRemaining = isDual 
+    ? (currentDraftingTeam === 'A' ? teamARespins : teamBRespins)
+    : singleRespins;
 
-  // Set of IDs already in squad
-  const draftedIds = useMemo(
-    () => new Set(squad.filter(Boolean).map((p) => p!.id)),
-    [squad],
-  );
+  // Derived state based on mode
+  const currentSquad = isDual 
+    ? (viewingTeam === 'A' ? teamASquad : teamBSquad)
+    : singleSquad;
 
-  // Set of occupied slot indices (0-based)
-  const occupiedSlots = useMemo(
-    () => new Set(squad.map((p, i) => (p ? i : -1)).filter((i) => i >= 0)),
-    [squad],
-  );
+  const draftingSquad = isDual
+    ? (currentDraftingTeam === 'A' ? teamASquad : teamBSquad)
+    : singleSquad;
 
-  const filledCount = squad.filter(Boolean).length;
-  const isFull = filledCount === SQUAD_SIZE;
+  const draftPlayer = isDual ? draftPlayerDual : draftPlayerSingle;
+  const isViewingOtherTeam = isDual && viewingTeam !== currentDraftingTeam;
 
-  // — Players available from the spun franchise —
+  // Auto-switch view to drafting team when turn changes
+  useMemo(() => {
+    if (isDual) setViewingTeam(currentDraftingTeam);
+  }, [currentDraftingTeam, isDual]);
+
+  const draftedIds = useMemo(() => {
+    if (isDual) {
+      return new Set([...teamASquad, ...teamBSquad].filter(Boolean).map(p => p!.id));
+    }
+    return new Set(singleSquad.filter(Boolean).map(p => p!.id));
+  }, [isDual, teamASquad, teamBSquad, singleSquad]);
+
+  const filledCount = draftingSquad.filter(Boolean).length;
+  const totalDraftedCount = isDual ? teamASquad.filter(Boolean).length + teamBSquad.filter(Boolean).length : filledCount;
+  
+  const isFull = isDual ? totalDraftedCount === SQUAD_SIZE * 2 : filledCount === SQUAD_SIZE;
+
   const spunPlayers = useMemo(() => {
     if (!currentSpunTeam) return [];
     return PLAYERS.filter(
@@ -216,15 +234,15 @@ export default function DraftScreen() {
     );
   }, [currentSpunTeam, draftedIds]);
 
-  // Check if a player has any available slots open
   const getAvailableSlots = useCallback(
     (player: Player): number[] => {
-      return player.allowedSlots.filter((slot) => !occupiedSlots.has(slot - 1)); // slot is 1-indexed
+      // Must use draftingSquad's occupied slots to prevent picking a slot that is full for the active team
+      const activeOccupied = new Set(draftingSquad.map((p, i) => (p ? i : -1)).filter((i) => i >= 0));
+      return player.allowedSlots.filter((slot) => !activeOccupied.has(slot - 1));
     },
-    [occupiedSlots],
+    [draftingSquad],
   );
 
-  // — Spin action —
   const handleSpin = useCallback(() => {
     if (isSpinning || isFull) return;
     setIsSpinning(true);
@@ -234,57 +252,51 @@ export default function DraftScreen() {
     }, 600);
   }, [isSpinning, isFull, spinForTeam]);
 
-  // — Respin action —
   const handleRespin = useCallback(() => {
     if (respinsRemaining > 0 && !isSpinning && !isFull) {
-      setRespinsRemaining(prev => prev - 1);
+      if (isDual) {
+        if (currentDraftingTeam === 'A') setTeamARespins(prev => prev - 1);
+        else setTeamBRespins(prev => prev - 1);
+      } else {
+        setSingleRespins(prev => prev - 1);
+      }
       setIsSpinning(true);
       setTimeout(() => {
         spinForTeam();
         setIsSpinning(false);
       }, 600);
     }
-  }, [respinsRemaining, isSpinning, isFull, spinForTeam]);
+  }, [respinsRemaining, isDual, currentDraftingTeam, isSpinning, isFull, spinForTeam]);
 
-  // — Player click → open modal —
   const handlePlayerClick = useCallback((player: Player) => {
+    // Only allow clicking if you are viewing your own team
+    if (isViewingOtherTeam) return;
     setSelectedPlayer(player);
-  }, []);
+  }, [isViewingOtherTeam]);
 
-  // — Slot selection from modal —
   const handleSlotSelect = useCallback(
     (slotIndex: number) => {
       if (!selectedPlayer) return;
       draftPlayer(selectedPlayer, slotIndex);
       setSelectedPlayer(null);
-      // draftPlayer already resets currentSpunTeam in the store
     },
     [selectedPlayer, draftPlayer],
   );
 
-  // — Close modal —
   const handleCloseModal = useCallback(() => {
     setSelectedPlayer(null);
   }, []);
 
-  // — Simulate —
   const startSimulation = useGameStore((s) => s.startSimulation);
-  const startH2HSimulation = useGameStore((s) => s.startH2HSimulation);
+  const isCoachMode = useCoachStore((s) => s.isCoachMode);
   
   const handleSimulate = () => {
-    try {
-      if (selectedMode === 'H2H') {
-        console.log('[DraftScreen] H2H mode — opening Coin Toss modal');
-        setShowCoinToss(true);
-      } else if (selectedMode === 'CHASE_300') {
-        console.log('[DraftScreen] CHASE_300 mode — opening Alien Mission modal');
-        setShowAlienMission(true);
-      } else {
-        console.log('[DraftScreen] Starting simulation for mode:', selectedMode);
-        startSimulation();
-      }
-    } catch (err) {
-      console.error('[DraftScreen] handleSimulate crashed:', err);
+    if (isCoachMode || selectedMode === 'H2H') {
+      setShowCoinToss(true);
+    } else if (selectedMode === 'CHASE_300') {
+      setShowAlienMission(true);
+    } else {
+      startSimulation();
     }
   };
 
@@ -293,12 +305,9 @@ export default function DraftScreen() {
     startSimulation();
   };
 
-  const handleCoinTossDecision = (userBatsFirst: boolean) => {
-    setShowCoinToss(false);
-    startH2HSimulation(userBatsFirst);
-  };
-
-  const modeInfo = MODE_TITLES[selectedMode ?? 'H2H'];
+  const modeInfo = isCoachMode 
+    ? { icon: <ClipboardList className="w-5 h-5 text-rose-400" />, label: 'Coach Mode' }
+    : MODE_TITLES[selectedMode ?? 'H2H'];
 
   return (
     <div className="draft-screen">
@@ -325,13 +334,37 @@ export default function DraftScreen() {
         <div className="draft-counter">
           <Users className="w-4 h-4" />
           <span>
-            <strong>{filledCount}</strong> / {SQUAD_SIZE}
+            <strong>{totalDraftedCount}</strong> / {isDual ? SQUAD_SIZE * 2 : SQUAD_SIZE}
           </span>
         </div>
       </motion.header>
 
+      {/* ── PITCH & TURN BANNERS ── */}
+      <div className="w-full flex flex-col items-center gap-2 mt-4 z-10 px-4">
+        {selectedMode === 'H2H' && currentPitch && (
+          <div className="bg-slate-900 border border-slate-700 px-6 py-2 rounded-full text-slate-300 font-bold tracking-wider text-sm shadow-lg flex items-center gap-2">
+            <span>🏏 PITCH CONDITIONS:</span>
+            <span className={
+              currentPitch === 'FLAT' ? 'text-blue-400' :
+              currentPitch === 'DUSTY' ? 'text-amber-500' :
+              currentPitch === 'GREEN' ? 'text-emerald-400' : 'text-purple-400'
+            }>{currentPitch}</span>
+          </div>
+        )}
+        
+        {isDual && !isFull && (
+          <div className={`px-8 py-3 rounded-xl border-2 font-black text-lg shadow-[0_0_20px_rgba(0,0,0,0.5)] flex items-center gap-2 ${
+            currentDraftingTeam === 'A' 
+              ? 'bg-slate-800 border-indigo-500 text-indigo-400' 
+              : 'bg-slate-800 border-emerald-500 text-emerald-400'
+          }`}>
+            🎯 NOW DRAFTING: {currentDraftingTeam === 'A' ? teamAName : teamBName}
+          </div>
+        )}
+      </div>
+
       {/* ── GRID ── */}
-      <div className="draft-grid h-[calc(100vh-160px)] min-h-0">
+      <div className="draft-grid h-[calc(100vh-220px)] min-h-0 mt-4">
         {/* ── LEFT: SQUAD ── */}
         <motion.section
           className="draft-squad-panel"
@@ -339,14 +372,35 @@ export default function DraftScreen() {
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.4, delay: 0.1 }}
         >
-          <div className="draft-panel-header">
-            <h2>Your Squad</h2>
-          </div>
+          {isDual ? (
+            <div className="w-full flex border-b border-slate-800 shrink-0">
+              <button 
+                onClick={() => setViewingTeam('A')}
+                className={`flex-1 py-3 font-bold text-sm tracking-wider transition-colors ${
+                  viewingTeam === 'A' ? 'bg-indigo-900/30 text-indigo-400 border-b-2 border-indigo-500' : 'text-slate-500 hover:bg-slate-800'
+                }`}
+              >
+                {teamAName.toUpperCase()}
+              </button>
+              <button 
+                onClick={() => setViewingTeam('B')}
+                className={`flex-1 py-3 font-bold text-sm tracking-wider transition-colors ${
+                  viewingTeam === 'B' ? 'bg-emerald-900/30 text-emerald-400 border-b-2 border-emerald-500' : 'text-slate-500 hover:bg-slate-800'
+                }`}
+              >
+                {teamBName.toUpperCase()}
+              </button>
+            </div>
+          ) : (
+            <div className="draft-panel-header">
+              <h2>Your Squad</h2>
+            </div>
+          )}
 
           <div className="draft-squad-list">
-            {squad.map((player, i) => (
+            {currentSquad.map((player, i) => (
               <motion.div
-                key={i}
+                key={`${isDual ? viewingTeam : 'single'}-${i}`}
                 className={`draft-squad-slot ${player ? 'filled' : 'empty'}`}
                 layout
                 initial={{ opacity: 0, x: -15 }}
@@ -398,7 +452,7 @@ export default function DraftScreen() {
                 onClick={handleSimulate}
               >
                 <Zap className="w-6 h-6" />
-                <span>SIMULATE MATCH</span>
+                <span>{isCoachMode ? 'PROCEED TO MATCH' : 'SIMULATE MATCH'}</span>
                 <ChevronRight className="w-5 h-5" />
               </motion.button>
             )}
@@ -425,7 +479,7 @@ export default function DraftScreen() {
               >
                 <div className="spin-prompt">
                   <div className="spin-slot-label">
-                    Pick <strong>{Math.min(filledCount + 1, SQUAD_SIZE)}</strong> of {SQUAD_SIZE}
+                    Pick <strong>{Math.min(totalDraftedCount + 1, isDual ? SQUAD_SIZE * 2 : SQUAD_SIZE)}</strong> of {isDual ? SQUAD_SIZE * 2 : SQUAD_SIZE}
                   </div>
                   <p className="spin-instruction">
                     Spin the wheel to reveal a franchise, then pick a player and choose their batting slot.
@@ -436,9 +490,10 @@ export default function DraftScreen() {
                   className="spin-btn"
                   id="spin-btn"
                   onClick={handleSpin}
-                  disabled={isFull || isSpinning}
+                  disabled={isFull || isSpinning || isViewingOtherTeam}
                   whileHover={!isFull ? { scale: 1.06, boxShadow: '0 0 60px rgba(99,102,241,0.5)' } : {}}
                   whileTap={!isFull ? { scale: 0.95 } : {}}
+                  style={{ opacity: isViewingOtherTeam ? 0.5 : 1 }}
                 >
                   <motion.div
                     className="spin-icon-wrap"
@@ -448,13 +503,13 @@ export default function DraftScreen() {
                     <RotateCw className="w-10 h-10" />
                   </motion.div>
                   <span className="spin-btn-text">
-                    {isFull ? 'SQUAD FULL' : isSpinning ? 'SPINNING…' : 'SPIN FOR FRANCHISE'}
+                    {isFull ? 'DRAFT COMPLETE' : isSpinning ? 'SPINNING…' : 'SPIN FOR FRANCHISE'}
                   </span>
                 </motion.button>
 
                 {isFull && (
                   <p className="spin-full-msg">
-                    Your XI is complete! Hit <strong>SIMULATE</strong> to begin.
+                    Draft is complete! Hit <strong>SIMULATE</strong> to begin.
                   </p>
                 )}
               </motion.div>
@@ -488,7 +543,7 @@ export default function DraftScreen() {
                     </span>
                   </motion.div>
 
-                  {respinsRemaining > 0 && (
+                  {respinsRemaining > 0 && !isViewingOtherTeam && (
                     <button
                       className="spin-skip-btn"
                       onClick={handleRespin}
@@ -505,7 +560,8 @@ export default function DraftScreen() {
                 <div className="draft-pool-list">
                   {spunPlayers.map((player) => {
                     const openSlots = getAvailableSlots(player);
-                    const isDisabled = openSlots.length === 0;
+                    // Also disable if we are just viewing the other team
+                    const isDisabled = openSlots.length === 0 || isViewingOtherTeam;
 
                     return (
                       <motion.button
@@ -540,8 +596,11 @@ export default function DraftScreen() {
                           </div>
 
                         {/* No slots available indicator */}
-                        {isDisabled && (
+                        {isDisabled && openSlots.length === 0 && (
                           <span className="pool-drafted-badge">NO SLOTS</span>
+                        )}
+                        {isDisabled && isViewingOtherTeam && openSlots.length > 0 && (
+                          <span className="pool-drafted-badge">NOT YOUR TURN</span>
                         )}
                       </motion.button>
                     );
@@ -574,7 +633,16 @@ export default function DraftScreen() {
         )}
         <CoinTossModal 
           isOpen={showCoinToss} 
-          onDecision={handleCoinTossDecision} 
+          onDecision={(userBatsFirst) => {
+            setShowCoinToss(false);
+            if (isCoachMode) {
+              useCoachStore.getState().initCoachMatch(userBatsFirst);
+            } else if (isDual) {
+              useGameStore.getState().startDualH2HSimulation(userBatsFirst);
+            } else {
+              useGameStore.getState().startH2HSimulation(userBatsFirst);
+            }
+          }} 
         />
         <AlienMissionModal
           isOpen={showAlienMission}

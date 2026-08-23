@@ -1,7 +1,7 @@
-import type { Player, UnifiedMatchResult, InningsResult, PlayerStats, OverSummary } from './types';
+import type { Player, UnifiedMatchResult, InningsResult, PlayerStats, OverSummary, PitchType } from './types';
 import { evaluateChase300Squad } from './simulation'; // We can reuse the evaluation logic
 
-export function simulateH2HMatch(userSquad: Player[], aiSquad: Player[], userTeamName: string, aiTeamName: string, userBatsFirst: boolean): UnifiedMatchResult {
+export function simulateH2HMatch(userSquad: Player[], aiSquad: Player[], userTeamName: string, aiTeamName: string, userBatsFirst: boolean, pitchType: PitchType = 'BALANCED'): UnifiedMatchResult {
   
   // Decide who bats first
   const team1Squad = userBatsFirst ? userSquad : aiSquad;
@@ -9,8 +9,11 @@ export function simulateH2HMatch(userSquad: Player[], aiSquad: Player[], userTea
   const team2Squad = userBatsFirst ? aiSquad : userSquad;
   const team2Name = userBatsFirst ? aiTeamName : userTeamName;
 
-  // Generate hidden pitchFactor for the match (e.g. 0.85 to 1.15)
-  const pitchFactor = Number((0.85 + Math.random() * 0.30).toFixed(2));
+  // Derive pitchFactor from pitchType
+  let pitchFactor = 1.0;
+  if (pitchType === 'FLAT') pitchFactor = 1.15;
+  if (pitchType === 'DUSTY') pitchFactor = 0.90;
+  if (pitchType === 'GREEN') pitchFactor = 0.85;
 
   // Simulate Innings 1 (Setting target) — team2 is fielding
   const innings1 = simulateInnings(team1Squad, team1Name, null, team2Squad, pitchFactor);
@@ -76,7 +79,8 @@ export function simulateH2HMatch(userSquad: Player[], aiSquad: Player[], userTea
     isWin,
     matchSummary,
     teamAnalysis: { verdict, comment },
-    manOfTheMatch: motm
+    manOfTheMatch: motm,
+    pitchType
   };
 }
 
@@ -140,8 +144,29 @@ function simulateInnings(squad: Player[], teamName: string, targetScore: number 
       else if (isMiddleOvers) rrr = 9.0;
     }
 
-    const effectiveBat = striker.player.batRating * batRatingPenalty;
-    const effectivePow = striker.player.powRating * moraleMultiplier;
+    let effectiveBat = striker.player.batRating * batRatingPenalty;
+    let effectivePow = striker.player.powRating * moraleMultiplier;
+
+    const nonStriker = playerStats[nonStrikerIndex];
+    const strikerEffects = (striker.player as any).activeSkillEffects;
+    const nonStrikerEffects = (nonStriker.player as any).activeSkillEffects;
+    
+    if (strikerEffects) {
+      for (const eff of strikerEffects) {
+        if (eff.type === 'chasing_boost' && targetScore !== null) {
+          effectivePow *= eff.magnitude;
+          effectiveBat *= eff.magnitude;
+        }
+      }
+    }
+    if (nonStrikerEffects) {
+      for (const eff of nonStrikerEffects) {
+        if (eff.type === 'partner_boost') {
+          effectivePow *= eff.magnitude;
+          effectiveBat *= eff.magnitude;
+        }
+      }
+    }
 
     // --- 3. Global Probability Rebalance ---
     let probWicket = 0.038;  // Reduced base wicket chance

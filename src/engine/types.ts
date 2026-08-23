@@ -38,7 +38,7 @@ export interface TeamMoraleSummary {
 // GAME MODES
 // ============================================================
 
-export type GameMode = 'H2H' | 'GAUNTLET' | 'CHASE_300';
+export type GameMode = 'H2H' | 'GAUNTLET' | 'CHASE_300' | 'CAREER_MOMENT';
 
 // ============================================================
 // BALL-BY-BALL SIMULATION STATE
@@ -204,6 +204,8 @@ export interface InningsResult {
   overLogs: OverSummary[];
 }
 
+export type PitchType = 'FLAT' | 'DUSTY' | 'GREEN' | 'BALANCED';
+
 export interface UnifiedMatchResult {
   innings: InningsResult[];
   isWin: boolean;
@@ -213,6 +215,44 @@ export interface UnifiedMatchResult {
     comment: string;
   };
   manOfTheMatch: { player: Player; reason: string } | null;
+  pitchType?: PitchType;
+}
+
+// ============================================================
+// COACH MODE TYPES
+// ============================================================
+
+export type CoachMatchPhase =
+  | 'PRE_MATCH'
+  | 'INN_1_PP' | 'INN_1_MID' | 'INN_1_DEATH'
+  | 'INN_2_PP' | 'INN_2_MID' | 'INN_2_DEATH'
+  | 'FINISHED';
+
+export type TeamMentality = 'AGGRESSIVE' | 'BALANCED' | 'DEFENSIVE';
+
+export interface PartialInningsState {
+  squad: Player[];
+  teamName: string;
+  bowlingSquad: Player[];
+  targetScore: number | null;
+  totalRuns: number;
+  totalWickets: number;
+  ballsBowled: number;
+  strikerIndex: number;
+  nonStrikerIndex: number;
+  nextBatterIndex: number;
+  playerStats: PlayerStats[];
+  overLogs: OverSummary[];
+  currentOverLog: string[];
+  unprepared: boolean;
+  unpreparedReason: string | null;
+  teamMoraleScore: number;
+  moraleMultiplier: number;
+  batRatingPenalty: number;
+  oppositionBowlingRating: number;
+  bowlerBalls: Record<string, number>;
+  lastBowlerId: string | null;
+  currentBowlerId: string | null;
 }
 
 export interface SquadBalanceResult {
