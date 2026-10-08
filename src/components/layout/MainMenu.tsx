@@ -4,6 +4,7 @@ import { useGameStore } from "../../store/gameStore";
 import { useCoachStore } from "../../store/coachStore";
 import type { GameMode } from "../../engine/types";
 import { Logo } from "../Logo";
+import SupportButton from "./SupportButton";
 
 export default function MainMenu() {
   const [showRules, setShowRules] = useState(false);
@@ -268,6 +269,7 @@ export default function MainMenu() {
 
       {/* 5. FOOTER */}
       <div className="w-full max-w-3xl mx-auto mt-auto pt-6 pb-2 flex flex-col items-center text-center text-xs text-slate-400 shrink-0">
+        <SupportButton />
         <p className="text-slate-500 text-xs mb-3">Select a game mode to begin drafting your XI</p>
         <div className="flex flex-wrap justify-center items-center gap-6 sm:gap-8">
           <a href="https://x.com/VkRkMb" target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 hover:text-blue-400 transition-colors font-medium">𝕏 Follow on X</a>
