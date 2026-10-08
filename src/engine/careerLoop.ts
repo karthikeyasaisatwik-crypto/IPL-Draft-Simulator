@@ -5,12 +5,14 @@ import { PHASE_2_EVENTS } from './phase2Events';
 import { PHASE_3_EVENTS } from './phase3Events';
 import { RETIREMENT_EVENTS } from './retirementEvents';
 import { selectEvent } from './selectEvent';
+import { getRelationshipEvent } from './careerExpansion';
 
 export function getNextCareerEvent(state: CareerState): AnyCareerEvent | null {
   const turnsInTier = state.currentWeek - state.tierStartWeek;
+  const unplayed = (title: string) => !state.bigMatchHistory.some(match => match.title === title && match.turnPlayed === state.currentWeek);
 
   if (state.careerTier === 'GRASSROOTS') {
-    if (turnsInTier === 20 || (turnsInTier === 8 && state.battingRating > 60)) {
+    if ((turnsInTier === 20 || (turnsInTier === 8 && state.battingRating > 60)) && unplayed('The District Final')) {
       return { 
         id: 'bm_district_final', 
         category: 'BIG_MATCH',
@@ -22,7 +24,7 @@ export function getNextCareerEvent(state: CareerState): AnyCareerEvent | null {
       };
     }
   } else if (state.careerTier === 'FRANCHISE_ROOKIE') {
-    if (turnsInTier === 30 || (turnsInTier === 20 && (state.brandValue > 60 || state.mediaHype > 70))) {
+    if ((turnsInTier === 30 || (turnsInTier === 20 && (state.brandValue > 60 || state.mediaHype > 70))) && unplayed('The Playoff Qualifier')) {
       return { 
         id: 'bm_playoff_qualifier', 
         category: 'BIG_MATCH',
@@ -34,7 +36,7 @@ export function getNextCareerEvent(state: CareerState): AnyCareerEvent | null {
       };
     }
   } else if (state.careerTier === 'GLOBAL_ICON') {
-    if (turnsInTier === 20) {
+    if (turnsInTier === 20 && unplayed('The World Cup Final')) {
       return { 
         id: 'bm_world_cup_final', 
         category: 'BIG_MATCH',
@@ -50,6 +52,9 @@ export function getNextCareerEvent(state: CareerState): AnyCareerEvent | null {
   if (state.careerTier === 'GLOBAL_ICON_RETIREMENT_PENDING') {
     return selectEvent(state, RETIREMENT_EVENTS);
   }
+
+  const relationshipEvent = getRelationshipEvent(state);
+  if (relationshipEvent) return relationshipEvent;
 
   let pool = PHASE_1_EVENTS;
   if (state.careerTier === 'FRANCHISE_ROOKIE') {

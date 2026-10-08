@@ -25,14 +25,14 @@ export default function DraftSetup() {
   };
 
   return (
-    <div className="flex flex-col items-center w-full max-w-4xl mx-auto p-6 mt-12 min-h-screen">
-      <header className="w-full flex items-center justify-between mb-12">
-        <button onClick={resetToMenu} className="flex items-center gap-2 text-slate-400 hover:text-white transition-colors">
+    <div className="flex flex-col items-center w-full max-w-4xl mx-auto p-4 sm:p-6 mt-4 sm:mt-12">
+      <header className="w-full flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8 sm:mb-12">
+        <button onClick={resetToMenu} className="flex items-center gap-2 min-h-11 shrink-0 text-slate-400 hover:text-white transition-colors">
           <ArrowLeft className="w-5 h-5" />
           <span>Back to Menu</span>
         </button>
-        <h1 className="text-3xl font-black text-white uppercase tracking-wider">H2H Match Setup</h1>
-        <div className="w-24" /> {/* Spacer for centering */}
+        <h1 className="text-2xl sm:text-3xl font-black text-white uppercase tracking-wider text-center w-full sm:w-auto">H2H Match Setup</h1>
+        <div className="hidden sm:block w-24 shrink-0" /> {/* Spacer for centering */}
       </header>
 
       <div className="w-full grid grid-cols-1 md:grid-cols-2 gap-6 mb-12">
@@ -105,7 +105,7 @@ export default function DraftSetup() {
         whileHover={{ scale: 1.05 }}
         whileTap={{ scale: 0.95 }}
         onClick={handleStart}
-        className="flex items-center gap-3 bg-white text-slate-950 font-black text-xl px-12 py-5 rounded-full shadow-[0_0_30px_rgba(255,255,255,0.2)] hover:shadow-[0_0_40px_rgba(255,255,255,0.4)] transition-all"
+        className="flex items-center gap-3 bg-white text-slate-950 font-black text-lg sm:text-xl px-6 sm:px-12 py-4 sm:py-5 rounded-full shadow-[0_0_30px_rgba(255,255,255,0.2)] hover:shadow-[0_0_40px_rgba(255,255,255,0.4)] transition-all"
       >
         <Play className="w-6 h-6 fill-current" />
         START DRAFT

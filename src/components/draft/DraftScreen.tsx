@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   ArrowLeft,
@@ -164,7 +164,6 @@ export default function DraftScreen() {
   const resetToMenu = useGameStore((s) => s.resetToMenu);
   const currentSpunTeam = useGameStore((s) => s.currentSpunTeam);
   const spinForTeam = useGameStore((s) => s.spinForTeam);
-  const clearSpunTeam = useGameStore((s) => s.clearSpunTeam);
   const currentPitch = useGameStore((s) => s.currentPitch);
   
   // Single Player State
@@ -186,6 +185,8 @@ export default function DraftScreen() {
   // Modals
   const [selectedPlayer, setSelectedPlayer] = useState<Player | null>(null);
   const [isSpinning, setIsSpinning] = useState(false);
+  const spinTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => { if (spinTimer.current) clearTimeout(spinTimer.current); }, []);
   const [showCoinToss, setShowCoinToss] = useState(false);
   const [showAlienMission, setShowAlienMission] = useState(false);
   
@@ -211,7 +212,7 @@ export default function DraftScreen() {
   const isViewingOtherTeam = isDual && viewingTeam !== currentDraftingTeam;
 
   // Auto-switch view to drafting team when turn changes
-  useMemo(() => {
+  useEffect(() => {
     if (isDual) setViewingTeam(currentDraftingTeam);
   }, [currentDraftingTeam, isDual]);
 
@@ -243,10 +244,16 @@ export default function DraftScreen() {
     [draftingSquad],
   );
 
+  const hasEligiblePlayer = spunPlayers.some(player => getAvailableSlots(player).length > 0);
+  const hasKeeper = currentSquad.slice(0, 7).some(player => player?.role === 'WK');
+  const bowlingSlots = currentSquad.slice(7);
+  const bowlingCount = bowlingSlots.filter(player => player?.role === 'Bowler' || player?.role === 'All-Rounder').length;
+  const invalidBowling = bowlingSlots.some(player => player && player.role !== 'Bowler' && player.role !== 'All-Rounder');
+
   const handleSpin = useCallback(() => {
     if (isSpinning || isFull) return;
     setIsSpinning(true);
-    setTimeout(() => {
+    spinTimer.current = setTimeout(() => {
       spinForTeam();
       setIsSpinning(false);
     }, 600);
@@ -261,7 +268,7 @@ export default function DraftScreen() {
         setSingleRespins(prev => prev - 1);
       }
       setIsSpinning(true);
-      setTimeout(() => {
+      spinTimer.current = setTimeout(() => {
         spinForTeam();
         setIsSpinning(false);
       }, 600);
@@ -437,6 +444,15 @@ export default function DraftScreen() {
             ))}
           </div>
 
+          <div className="px-4 py-3 border-t border-slate-800 text-sm space-y-1 shrink-0" aria-live="polite">
+            <p className={hasKeeper ? 'text-emerald-400' : 'text-amber-400'}>
+              {hasKeeper ? '✓ Keeper selected' : 'Keeper missing — select a WK in slots 1–7'}
+            </p>
+            <p className={invalidBowling ? 'text-rose-400' : bowlingCount === 4 ? 'text-emerald-400' : 'text-slate-400'}>
+              {invalidBowling ? 'Bowling penalty — slots 8–11 need Bowlers or All-Rounders' : `Bowling slots ready: ${bowlingCount}/4`}
+            </p>
+          </div>
+
           {/* ── SIMULATE BUTTON ── */}
           <AnimatePresence>
             {isFull && (
@@ -547,6 +563,7 @@ export default function DraftScreen() {
                     <button
                       className="spin-skip-btn"
                       onClick={handleRespin}
+                      disabled={isSpinning || isFull}
                       title="Re-spin"
                       style={{ backgroundColor: 'rgba(245, 158, 11, 0.1)', color: '#f59e0b', borderColor: 'rgba(245, 158, 11, 0.4)' }}
                     >
@@ -561,7 +578,7 @@ export default function DraftScreen() {
                   {spunPlayers.map((player) => {
                     const openSlots = getAvailableSlots(player);
                     // Also disable if we are just viewing the other team
-                    const isDisabled = openSlots.length === 0 || isViewingOtherTeam;
+                    const isDisabled = openSlots.length === 0 || isViewingOtherTeam || isSpinning;
 
                     return (
                       <motion.button
@@ -606,11 +623,12 @@ export default function DraftScreen() {
                     );
                   })}
 
-                  {spunPlayers.length === 0 && (
+                  {!hasEligiblePlayer && !isFull && (
                     <div className="pool-empty">
-                      <p>No available players from {getFranchiseName(currentSpunTeam)}.</p>
-                      <button className="spin-respin-link" onClick={clearSpunTeam}>
-                        Spin again →
+                      <p>No players from {getFranchiseName(currentSpunTeam)} fit your remaining slots.</p>
+                      <p>This reroll is free and preserves your respins.</p>
+                      <button className="spin-respin-link min-h-11" disabled={isSpinning || isViewingOtherTeam} onClick={handleSpin}>
+                        {isSpinning ? 'Spinning…' : 'Free reroll →'}
                       </button>
                     </div>
                   )}
@@ -631,7 +649,7 @@ export default function DraftScreen() {
             onClose={handleCloseModal}
           />
         )}
-        <CoinTossModal 
+        <CoinTossModal key="coin-toss"
           isOpen={showCoinToss} 
           onDecision={(userBatsFirst) => {
             setShowCoinToss(false);
@@ -644,7 +662,7 @@ export default function DraftScreen() {
             }
           }} 
         />
-        <AlienMissionModal
+        <AlienMissionModal key="alien-mission"
           isOpen={showAlienMission}
           onCommence={handleCommenceChase}
         />

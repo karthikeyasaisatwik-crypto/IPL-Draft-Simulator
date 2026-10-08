@@ -21,6 +21,13 @@ export function generatePostMatchEmails(
   userTeamName: string,
   _aiTeamName: string
 ): CoachEmail[] {
+  if (matchResult.isTie) {
+    return [{
+      id: 'email-tie', sender: 'The Board of Directors', subject: 'Honours even',
+      body: 'Both teams finished on the same score. A hard-fought tie; regroup and build on this performance.',
+      isRead: false, category: 'BOARD',
+    }];
+  }
   const emails: CoachEmail[] = [];
   const { innings, isWin } = matchResult;
   const inn1 = innings[0];

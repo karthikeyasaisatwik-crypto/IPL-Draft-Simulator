@@ -14,6 +14,8 @@ import type { PartialInningsState, Player } from '../../engine/types';
 import CoinTossModal from '../draft/CoinTossModal';
 import CoachScorecard from './CoachScorecard';
 import MatchupMatrix from './MatchupMatrix';
+import CoachPlanPanel from './CoachPlanPanel';
+import CoachRadarReplay from './CoachRadarReplay';
 
 // ============================================================
 // FLUID TACTICAL SLIDER COMPONENT (0 to 100)
@@ -92,6 +94,7 @@ function TacticsSlider({
         <span className={`font-black text-sm tracking-wide ${info.color}`}>{info.title}</span>
         <span className="text-[11px] text-slate-400 font-medium">{info.sub}</span>
       </div>
+      <CoachPlanPanel isBatting={isBatting} />
     </div>
   );
 }
@@ -376,6 +379,13 @@ export default function CoachDashboard() {
         <div className="w-16" />
       </header>
 
+      {(() => {
+        const partial = coachPhase.startsWith('INN_2') ? partialInn2 : partialInn1;
+        const start = coachPhase.endsWith('MID') ? 36 : coachPhase.endsWith('DEATH') ? 96 : 0;
+        const phaseLogs = partial?.ballLogs?.filter(ball => ball.ballNumber > start) ?? [];
+        const logs = phaseLogs.length ? phaseLogs : partial?.ballLogs ?? [];
+        return logs.length && partial ? <CoachRadarReplay key={coachPhase} logs={logs} teamName={partial.teamName} /> : null;
+      })()}
       <AnimatePresence mode="wait">
         {/* ── PRE_MATCH: Show lineup + tactical slider (+ bowler assignments if bowling first) ── */}
         {coachPhase === 'PRE_MATCH' && partialInn1 && (

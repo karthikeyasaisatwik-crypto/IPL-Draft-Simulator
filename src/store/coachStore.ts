@@ -1,3 +1,5 @@
+import { DEFAULT_COACH_PLANS } from '../engine/coachTactics';
+import type { CoachPlans } from '../engine/coachTactics';
 // ============================================================
 // COACH MODE — ISOLATED ZUSTAND STORE
 // Completely separate from gameStore.ts. Manages the phased
@@ -75,6 +77,10 @@ interface CoachStore {
   pitchType: PitchType;
   keyMatchups: Matchup[];
 
+  plans: CoachPlans;
+  planHistory: { innings: number; phase: string; label: string; traits: boolean; runs: number; wickets: number }[];
+  setPlans: (plans: Partial<CoachPlans>) => void;
+
   // Actions
   setCoachMode: (enabled: boolean) => void;
   setTactics: (val: number) => void;
@@ -85,6 +91,9 @@ interface CoachStore {
 }
 
 export const useCoachStore = create<CoachStore>((set, get) => ({
+  plans: { ...DEFAULT_COACH_PLANS },
+  planHistory: [],
+  setPlans: (plans) => set(state => ({ plans: { ...state.plans, ...plans, usePlayerTraits: state.coachPhase === 'PRE_MATCH' ? plans.usePlayerTraits ?? state.plans.usePlayerTraits : state.plans.usePlayerTraits } })),
   // Defaults
   isCoachMode: false,
   coachPhase: 'PRE_MATCH',
@@ -140,6 +149,8 @@ export const useCoachStore = create<CoachStore>((set, get) => ({
     set({
       isCoachMode: true,
       coachPhase: 'PRE_MATCH',
+      plans: { ...DEFAULT_COACH_PLANS },
+      planHistory: [],
       teamTactics: 50,
       preferredBowlers: [],
       inn1Tactics: [],
@@ -167,6 +178,15 @@ export const useCoachStore = create<CoachStore>((set, get) => ({
     const state = get();
     const pitchFactor = getPitchFactor(state.pitchType);
 
+    const recordPlan = (before: PartialInningsState, after: PartialInningsState, innings: number, phase: string, batting: boolean) => ({
+      plans: { ...state.plans, batting: 'BALANCED' as const, bowling: 'STOCK' as const },
+      planHistory: after.ballsBowled > before.ballsBowled ? [...state.planHistory, {
+        innings, phase, label: batting ? state.plans.batting : state.plans.bowling,
+        traits: state.plans.usePlayerTraits,
+        runs: after.totalRuns - before.totalRuns, wickets: after.totalWickets - before.totalWickets,
+      }] : state.planHistory,
+    });
+
     switch (state.coachPhase) {
       // ── PRE_MATCH → Simulate Powerplay (balls 1-36) ──
       case 'PRE_MATCH': {
@@ -181,8 +201,10 @@ export const useCoachStore = create<CoachStore>((set, get) => ({
           isBatting,
           state.preferredBowlers,
           state.keyMatchups,
+          state.plans,
         );
         set({
+          ...recordPlan(state.partialInn1, updated, 1, 'Powerplay', isBatting),
           partialInn1: updated,
           coachPhase: 'INN_1_PP',
           inn1Tactics: [state.teamTactics],
@@ -205,8 +227,10 @@ export const useCoachStore = create<CoachStore>((set, get) => ({
           isBatting,
           state.preferredBowlers,
           state.keyMatchups,
+          state.plans,
         );
         set({
+          ...recordPlan(state.partialInn1, updated, 1, 'Middle overs', isBatting),
           partialInn1: updated,
           coachPhase: 'INN_1_MID',
           inn1Tactics: [...state.inn1Tactics, state.teamTactics],
@@ -229,6 +253,7 @@ export const useCoachStore = create<CoachStore>((set, get) => ({
           isBatting,
           state.preferredBowlers,
           state.keyMatchups,
+          state.plans,
         );
         const finalInn1 = finalizeInnings(updated);
 
@@ -241,6 +266,7 @@ export const useCoachStore = create<CoachStore>((set, get) => ({
         const partialInn2 = initPartialInnings(chasingSquad, chasingTeamName, fieldingSquad, target);
 
         set({
+          ...recordPlan(state.partialInn1, updated, 1, 'Death overs', isBatting),
           partialInn1: updated,
           finalInn1,
           partialInn2,
@@ -265,8 +291,10 @@ export const useCoachStore = create<CoachStore>((set, get) => ({
           isBatting,
           state.preferredBowlers,
           state.keyMatchups,
+          state.plans,
         );
         set({
+          ...recordPlan(state.partialInn2, updated, 2, 'Powerplay', isBatting),
           partialInn2: updated,
           coachPhase: 'INN_2_PP',
           inn2Tactics: [state.teamTactics],
@@ -289,8 +317,10 @@ export const useCoachStore = create<CoachStore>((set, get) => ({
           isBatting,
           state.preferredBowlers,
           state.keyMatchups,
+          state.plans,
         );
         set({
+          ...recordPlan(state.partialInn2, updated, 2, 'Middle overs', isBatting),
           partialInn2: updated,
           coachPhase: 'INN_2_MID',
           inn2Tactics: [...state.inn2Tactics, state.teamTactics],
@@ -313,6 +343,7 @@ export const useCoachStore = create<CoachStore>((set, get) => ({
           isBatting,
           state.preferredBowlers,
           state.keyMatchups,
+          state.plans,
         );
         const finalInn2 = finalizeInnings(updated);
 
@@ -345,6 +376,7 @@ export const useCoachStore = create<CoachStore>((set, get) => ({
         });
 
         set({
+          ...recordPlan(state.partialInn2, updated, 2, 'Death overs', isBatting),
           partialInn2: updated,
           finalInn2,
           coachMatchResult: matchResult,
@@ -365,6 +397,8 @@ export const useCoachStore = create<CoachStore>((set, get) => ({
     set({
       isCoachMode: false,
       coachPhase: 'PRE_MATCH',
+      plans: { ...DEFAULT_COACH_PLANS },
+      planHistory: [],
       teamTactics: 50,
       preferredBowlers: [],
       inn1Tactics: [],

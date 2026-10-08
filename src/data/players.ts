@@ -1391,6 +1391,127 @@ export const PLAYERS: Player[] = [
     "batRating": 15,
     "powRating": 20,
     "bwlRating": 68
+  },
+  {
+    "id": "gt_01",
+    "name": "Shubman Gill",
+    "team": "GT",
+    "role": "Batter",
+    "battingPosition": 1,
+    "allowedSlots": [1, 2, 3],
+    "batRating": 88,
+    "powRating": 86,
+    "bwlRating": 10
+  },
+  {
+    "id": "gt_02",
+    "name": "Sai Sudharsan",
+    "team": "GT",
+    "role": "Batter",
+    "battingPosition": 3,
+    "allowedSlots": [2, 3, 4],
+    "batRating": 82,
+    "powRating": 78,
+    "bwlRating": 5
+  },
+  {
+    "id": "gt_03",
+    "name": "Jos Buttler",
+    "team": "GT",
+    "role": "WK",
+    "battingPosition": 1,
+    "allowedSlots": [1, 2],
+    "batRating": 86,
+    "powRating": 90,
+    "bwlRating": 5
+  },
+  {
+    "id": "gt_04",
+    "name": "Shahrukh Khan",
+    "team": "GT",
+    "role": "Batter",
+    "battingPosition": 5,
+    "allowedSlots": [4, 5, 6],
+    "batRating": 74,
+    "powRating": 88,
+    "bwlRating": 10
+  },
+  {
+    "id": "gt_05",
+    "name": "Rahul Tewatia",
+    "team": "GT",
+    "role": "All-Rounder",
+    "battingPosition": 6,
+    "allowedSlots": [5, 6, 7],
+    "batRating": 72,
+    "powRating": 85,
+    "bwlRating": 62
+  },
+  {
+    "id": "gt_06",
+    "name": "Rashid Khan",
+    "team": "GT",
+    "role": "All-Rounder",
+    "battingPosition": 7,
+    "allowedSlots": [6, 7, 8],
+    "batRating": 62,
+    "powRating": 78,
+    "bwlRating": 92
+  },
+  {
+    "id": "gt_07",
+    "name": "Washington Sundar",
+    "team": "GT",
+    "role": "All-Rounder",
+    "battingPosition": 7,
+    "allowedSlots": [6, 7, 8],
+    "batRating": 68,
+    "powRating": 65,
+    "bwlRating": 78
+  },
+  {
+    "id": "gt_08",
+    "name": "Kagiso Rabada",
+    "team": "GT",
+    "role": "Bowler",
+    "battingPosition": 10,
+    "allowedSlots": [9, 10, 11],
+    "batRating": 28,
+    "powRating": 42,
+    "bwlRating": 92
+  },
+  {
+    "id": "gt_09",
+    "name": "Mohammed Siraj",
+    "team": "GT",
+    "role": "Bowler",
+    "battingPosition": 11,
+    "allowedSlots": [9, 10, 11],
+    "batRating": 18,
+    "powRating": 30,
+    "bwlRating": 85
+  },
+  {
+    "id": "gt_10",
+    "name": "Prasidh Krishna",
+    "team": "GT",
+    "role": "Bowler",
+    "battingPosition": 10,
+    "allowedSlots": [9, 10, 11],
+    "batRating": 15,
+    "powRating": 25,
+    "bwlRating": 82
+  },
+  {
+    "id": "gt_11",
+    "name": "Sai Kishore",
+    "team": "GT",
+    "role": "Bowler",
+    "battingPosition": 9,
+    "allowedSlots": [8, 9, 10],
+    "batRating": 30,
+    "powRating": 35,
+    "bwlRating": 78
   }
 ];
 

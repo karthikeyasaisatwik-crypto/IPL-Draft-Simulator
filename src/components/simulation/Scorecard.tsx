@@ -1,9 +1,11 @@
+import MatchAnalysisButton from './MatchAnalysisButton';
 import { useGameStore } from '../../store/gameStore';
 import { motion } from 'framer-motion';
 import { ShieldAlert, Trophy, ArrowRight, User } from 'lucide-react';
 import type { InningsResult, Player } from '../../engine/types';
 
 export default function Scorecard() {
+  const selectedMode = useGameStore(s => s.selectedMode);
   const result = useGameStore((s) => s.lastMatchResult);
   const draftedSquad = useGameStore((s) => s.draftedSquad);
   const resetToMenu = useGameStore((s) => s.resetToMenu);
@@ -32,7 +34,7 @@ export default function Scorecard() {
     >
       {/* MATCH VERDICT BANNER */}
       <header className="scorecard-header text-center mb-8">
-        <h1 className={`text-4xl font-black mb-2 ${result.isWin ? 'text-green' : 'text-red'}`} style={{ textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+        <h1 className={`text-4xl font-black mb-2 ${result.isTie ? 'text-amber-400' : result.isWin ? 'text-emerald-400' : 'text-rose-500'}`} style={{ textTransform: 'uppercase', letterSpacing: '0.05em' }}>
           {result.matchSummary}
         </h1>
         {result.pitchType && (
@@ -51,6 +53,7 @@ export default function Scorecard() {
           </p>
         )}
       </header>
+      {selectedMode !== 'CAREER_MOMENT' && <MatchAnalysisButton result={result} />}
 
       {/* USER PENALTY BANNERS */}
       {userMissingWk && (

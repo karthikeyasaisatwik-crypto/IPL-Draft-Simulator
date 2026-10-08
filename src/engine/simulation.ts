@@ -1,4 +1,6 @@
-import type { Player, UnifiedMatchResult, InningsResult, PlayerStats, OverSummary, SquadBalanceResult } from './types';
+import { recordDelivery } from './shotVisualizer';
+import { getMatchPerkMultiplier } from './matchPerks';
+import type { Player, UnifiedMatchResult, InningsResult, PlayerStats, OverSummary, BallLog, SquadBalanceResult } from './types';
 
 // ============================================================
 // CHASE 300 ENGINE UTILS
@@ -102,6 +104,7 @@ export function simulateChase300(
   }));
 
   const overLogs: OverSummary[] = [];
+  const ballLogs: BallLog[] = [];
   let currentOverLog: string[] = [];
 
   let totalRuns = 0;
@@ -141,25 +144,9 @@ export function simulateChase300(
     let effectivePow = striker.player.powRating * moraleMultiplier;
 
     const nonStriker = playerStats[nonStrikerIndex];
-    const strikerEffects = (striker.player as any).activeSkillEffects;
-    const nonStrikerEffects = (nonStriker.player as any).activeSkillEffects;
-    
-    if (strikerEffects) {
-      for (const eff of strikerEffects) {
-        if (eff.type === 'chasing_boost') {
-          effectivePow *= eff.magnitude;
-          effectiveBat *= eff.magnitude;
-        }
-      }
-    }
-    if (nonStrikerEffects) {
-      for (const eff of nonStrikerEffects) {
-        if (eff.type === 'partner_boost') {
-          effectivePow *= eff.magnitude;
-          effectiveBat *= eff.magnitude;
-        }
-      }
-    }
+    const perkMultiplier = getMatchPerkMultiplier(striker.player, nonStriker.player, true);
+    effectivePow *= perkMultiplier;
+    effectiveBat *= perkMultiplier;
 
     // Base probabilities (Global Probability Rebalance)
     let probWicket = 0.038;
@@ -267,6 +254,13 @@ export function simulateChase300(
       }
     }
 
+    ballLogs.push(recordDelivery({
+      ballNumber: ballsBowled, overNumber, strikerName: striker.player.name,
+      bowlerName: isWicket ? (striker.dismissal.match(/(?:^b | b )(.+)$/)?.[1] ?? 'Opposition attack') : 'Opposition attack',
+      runs: runsOnBall, isWicket, dismissalText: isWicket ? striker.dismissal : undefined,
+      currentTotal: totalRuns, currentWickets: totalWickets,
+    }));
+
     // End of over logic
     if (ball % 6 === 0 || totalWickets >= 10 || totalRuns >= TARGET) {
       const summaryText = currentOverLog.join(', ');
@@ -343,7 +337,8 @@ export function simulateChase300(
     unpreparedReason,
     teamMoraleScore: squadEval.teamMorale,
     playerStats,
-    overLogs
+    overLogs,
+    ballLogs
   };
 
   return {

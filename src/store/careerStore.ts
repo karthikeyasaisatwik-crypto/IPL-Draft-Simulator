@@ -2,9 +2,10 @@ import { checkTierTransition, computeAge } from '../engine/tierTransitions';
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { Player } from '../engine/types';
-import type { SkillEffect, Archetype, ActiveModifier } from '../engine/careerTypes';
+import type { SkillEffect, Archetype, ActiveModifier, NpcId, WeeklyFocus } from '../engine/careerTypes';
 import { ARCHETYPE_CONFIG } from '../engine/careerTypes';
 import { SKILL_NODES } from '../engine/skillTreeData';
+import { INITIAL_RELATIONSHIPS, WEEKLY_FOCUSES, CAREER_GOALS, applyCareerDeltas, perkMagnitude } from '../engine/careerExpansion';
 
 export type StatKey = 'academicStress' | 'coachFavor' | 'parentalExpectations' | 'popularity' | 'lockerRoomRespect' | 'battingRating' | 'stamina' | 'form' | 'funds' | 'franchiseTrust' | 'mediaHype' | 'mentality' | 'brandValue' | 'familyMorale' | 'legacyScore';
 
@@ -75,6 +76,18 @@ export interface CareerState {
   isCaptain: boolean;
   managerCommissionRate: number;
   
+  relationships: Record<NpcId, number>;
+  careerXp: number;
+  trainingSessions: number;
+  rivalWins: number;
+  lastFocusWeek: number;
+  weeklyFocus: WeeklyFocus | null;
+  lastFocusSummary: string;
+  claimedGoals: string[];
+  chooseWeeklyFocus: (focus: WeeklyFocus) => void;
+  changeRelationships: (changes: Partial<Record<NpcId, number>>) => void;
+  recordRivalWin: () => void;
+  claimGoal: (id: string) => void;
   skillPoints: number;
   unlockedSkillNodes: string[];
   lastLegacySpMilestone: number;
@@ -90,7 +103,7 @@ export interface CareerState {
   clearTransitionModal: () => void;
   addSponsorship: (sponsor: string) => void;
   setCurrentContract: (contract: string) => void;
-  unlockSkill: (nodeId: string, cost: number) => void;
+  unlockSkill: (nodeId: string) => void;
   resetCareer: () => void;
   jumpToTier: (tier: CareerTier) => void;
   setRawState: (partial: Partial<CareerState>) => void;
@@ -137,7 +150,15 @@ const DEFAULT_STATE: Partial<CareerState> = {
   isCaptain: false,
   managerCommissionRate: 0,
   
-  skillPoints: 0,
+  relationships: { ...INITIAL_RELATIONSHIPS },
+  careerXp: 0,
+  trainingSessions: 0,
+  rivalWins: 0,
+  lastFocusWeek: 0,
+  weeklyFocus: null,
+  lastFocusSummary: '',
+  claimedGoals: [],
+  skillPoints: 3,
   unlockedSkillNodes: [],
   lastLegacySpMilestone: 0,
 };
@@ -150,6 +171,8 @@ export const useCareerStore = create<CareerState>()(
       initializeArchetype: (archetype: Archetype, playerName?: string) => set((state) => {
         const cfg = ARCHETYPE_CONFIG[archetype];
         return {
+          ...DEFAULT_STATE,
+          relationships: { ...INITIAL_RELATIONSHIPS },
           archetype,
           playerName: playerName?.trim() || state.playerName || 'Rookie',
           battingRating: cfg.battingRating,
@@ -192,6 +215,8 @@ export const useCareerStore = create<CareerState>()(
         const clamp = (val: number, min: number, max: number) => Math.max(min, Math.min(max, val));
         let modifiedStats: Partial<Record<StatKey, number>> = {};
         let updatedModifiers = state.activeModifiers.map(m => ({ ...m }));
+        let careerXp = state.careerXp;
+        let newSkillPoints = state.skillPoints;
 
         const getStat = (k: StatKey): number => {
           return modifiedStats[k] !== undefined ? modifiedStats[k]! : (state[k] as number);
@@ -203,6 +228,16 @@ export const useCareerStore = create<CareerState>()(
           if (state.careerTier === 'FRANCHISE_ROOKIE' || state.careerTier === 'GLOBAL_ICON') {
             const income = CONTRACT_WEEKLY_INCOME[state.currentContract] || 0;
             newFunds += income * (1 - state.managerCommissionRate);
+          }
+
+          careerXp += 10;
+          newSkillPoints += Math.floor(careerXp / 40) - Math.floor(state.careerXp / 40);
+          const addPassive = (stat: StatKey, delta: number) => { modifiedStats[stat] = clamp(getStat(stat) + delta, 0, 100); };
+          if (state.relationships.dev >= 60) { addPassive('coachFavor', 1); addPassive('lockerRoomRespect', 1); }
+          if (state.relationships.meera >= 60) { addPassive('stamina', 2); addPassive('coachFavor', 1); }
+          for (const rival of ['arjun', 'zoya'] as const) {
+            if (state.relationships[rival] >= 65) { addPassive('lockerRoomRespect', 1); addPassive('mentality', 1); }
+            else if (state.relationships[rival] < 25) { addPassive('lockerRoomRespect', -1); addPassive('coachFavor', -1); }
           }
 
           // 1. Apply active status effects
@@ -220,6 +255,8 @@ export const useCareerStore = create<CareerState>()(
             mod.turnsRemaining -= 1;
           });
 
+          newFunds = Math.max(0, newFunds + (modifiedStats.funds !== undefined ? modifiedStats.funds - state.funds : 0));
+          newFranchiseTrust = getStat('franchiseTrust');
           const nextTier = checkTierTransition({ 
             ...state, 
             ...modifiedStats,
@@ -279,7 +316,9 @@ export const useCareerStore = create<CareerState>()(
 
         return { 
           ...modifiedStats,
-          currentWeek: newWeek, 
+          currentWeek: newWeek,
+          careerXp,
+          skillPoints: newSkillPoints,
           age: newAge,
           funds: newFunds,
           careerTier: newTier,
@@ -293,7 +332,7 @@ export const useCareerStore = create<CareerState>()(
         };
       }),
 
-      addBigMatchRecord: (record) => set((state) => ({
+      addBigMatchRecord: (record) => set((state) => state.bigMatchHistory.some(match => match.title === record.title && match.turnPlayed === record.turnPlayed) ? {} : ({
         bigMatchHistory: [...state.bigMatchHistory, record]
       })),
 
@@ -306,7 +345,8 @@ export const useCareerStore = create<CareerState>()(
         for (const [key, delta] of Object.entries(changes)) {
           const k = key as keyof typeof changes;
           if (typeof state[k] === 'number') {
-            let newVal = (state[k] as number) + (delta || 0);
+            const adjustedDelta = k === 'mentality' && delta! < 0 ? Math.round(delta! * (1 - Math.min(0.75, perkMagnitude(state, 'pressure_shield')))) : (delta || 0);
+            let newVal = (state[k] as number) + adjustedDelta;
             if (k === 'battingRating' || k === 'funds') {
               newVal = Math.max(0, newVal);
             } else if (k === 'legacyScore') {
@@ -345,14 +385,55 @@ export const useCareerStore = create<CareerState>()(
       clearTransitionModal: () => set({ transitionModalText: null }),
       addSponsorship: (sponsor) => set((state) => ({ unlockedSponsorships: [...state.unlockedSponsorships, sponsor] })),
       setCurrentContract: (contract) => set({ currentContract: contract }),
-      unlockSkill: (nodeId, cost) => set((state) => ({ 
-        unlockedSkillNodes: [...state.unlockedSkillNodes, nodeId],
-        skillPoints: state.skillPoints - cost 
-      })),
+      unlockSkill: (nodeId) => set((state) => {
+        const node = SKILL_NODES.find(n => n.id === nodeId);
+        if (!state.hasSelectedArchetype || state.careerTier === 'RETIRED' || !node || state.unlockedSkillNodes.includes(nodeId) || state.skillPoints < node.spCost || (node.prerequisiteId && !state.unlockedSkillNodes.includes(node.prerequisiteId))) return {};
+        return { unlockedSkillNodes: [...state.unlockedSkillNodes, nodeId], skillPoints: state.skillPoints - node.spCost };
+      }),
+
+      chooseWeeklyFocus: (focus) => set((state) => {
+        const definition = WEEKLY_FOCUSES.find(f => f.id === focus);
+        if (!definition || !state.hasSelectedArchetype || state.careerTier === 'RETIRED' || state.transitionModalText || state.lastFocusWeek === state.currentWeek || state.stamina < definition.minStamina) return {};
+        const changes: Partial<Record<StatKey, number>> = focus === 'nets'
+          ? { battingRating: 3 + perkMagnitude(state, 'training_boost'), form: 2, stamina: -12 }
+          : focus === 'recovery' ? { stamina: Math.round(18 * (1 + perkMagnitude(state, 'recovery_boost'))), mentality: 3 }
+          : focus === 'study' ? { academicStress: -12, familyMorale: 5, parentalExpectations: 4 }
+          : { stamina: -6, coachFavor: 3, lockerRoomRespect: 3 };
+        const careerXp = state.careerXp + 5;
+        return {
+          ...applyCareerDeltas(state, changes), careerXp,
+          skillPoints: state.skillPoints + Math.floor(careerXp / 40) - Math.floor(state.careerXp / 40),
+          trainingSessions: state.trainingSessions + (focus === 'nets' ? 1 : 0),
+          relationships: { ...state.relationships, dev: Math.min(100, state.relationships.dev + (focus === 'mentor' ? Math.round(10 * (1 + perkMagnitude(state, 'relationship_boost'))) : 0)) },
+          lastFocusWeek: state.currentWeek, weeklyFocus: focus,
+          lastFocusSummary: `${definition.name} completed. ${Object.entries(changes).map(([key, value]) => `${key.replace(/([A-Z])/g, ' $1').replace(/^./, letter => letter.toUpperCase())} ${value! > 0 ? '+' : ''}${value}`).join(' · ')} · +5 XP`,
+        };
+      }),
+
+      changeRelationships: (changes) => set((state) => {
+        const relationships = { ...state.relationships };
+        for (const [id, delta] of Object.entries(changes)) {
+          if (!(id in INITIAL_RELATIONSHIPS)) continue;
+          const gain = delta! > 0 ? Math.round(delta! * (1 + perkMagnitude(state, 'relationship_boost'))) : delta!;
+          relationships[id as NpcId] = Math.max(0, Math.min(100, relationships[id as NpcId] + gain));
+        }
+        return { relationships };
+      }),
+      recordRivalWin: () => set(state => ({ rivalWins: state.rivalWins + 1 })),
+      claimGoal: (id) => set((state) => {
+        const goal = CAREER_GOALS.find(g => g.id === id);
+        if (!state.hasSelectedArchetype || state.careerTier === 'RETIRED' || !goal || state.claimedGoals.includes(id) || goal.progress(state) < goal.target) return {};
+        const legacyScore = state.legacyScore + 5;
+        const milestone = Math.max(state.lastLegacySpMilestone, Math.floor(legacyScore / 20));
+        return { claimedGoals: [...state.claimedGoals, id], legacyScore, lastLegacySpMilestone: milestone,
+          skillPoints: state.skillPoints + goal.sp + milestone - state.lastLegacySpMilestone };
+      }),
 
       resetCareer: () => set({
         ...(DEFAULT_STATE as CareerState),
         hasSelectedArchetype: false,
+        relationships: { ...INITIAL_RELATIONSHIPS },
+        claimedGoals: [],
         activeModifiers: [],
         bigMatchHistory: [],
         unlockedFlags: {},

@@ -1,7 +1,7 @@
 import RetirementScreen from './RetirementScreen';
 import ArchetypeSelectScreen from './ArchetypeSelectScreen';
 import DebugHarness from './DebugHarness';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useCareerStore, STAT_DIRECTIONS } from '../../store/careerStore';
 import type { StatKey } from '../../store/careerStore';
@@ -10,6 +10,8 @@ import type { AnyCareerEvent } from '../../engine/careerTypes';
 import EventModal from './EventModal';
 import { BigMatchScreen } from './BigMatchScreen';
 import SkillTree from './SkillTree';
+import CareerDevelopment from './CareerDevelopment';
+import { useGameStore } from '../../store/gameStore';
 import { Calendar, Shield, Activity, TrendingUp, TrendingDown, Package, Zap, Award, Star, Wrench } from 'lucide-react';
 
 export default function RookieHub() {
@@ -18,8 +20,21 @@ export default function RookieHub() {
   const [showSkillTree, setShowSkillTree] = useState(false);
   const [showDebugHarness, setShowDebugHarness] = useState(false);
 
+  const handleAdvance = useCallback(() => {
+    if (state.transitionModalText) return;
+    const nextEvent = getNextCareerEvent(state);
+    if (nextEvent) {
+      state.recordEventShown(nextEvent.id);
+      setActiveEvent(nextEvent);
+    } else {
+      state.advanceWeek();
+    }
+  }, [state]);
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      if (!state.hasSelectedArchetype || state.careerTier === 'RETIRED' || showSkillTree || showDebugHarness || e.repeat) return;
+      if (e.target instanceof Element && e.target.closest('input, textarea, select, button, a, [contenteditable], [role=button]')) return;
       // Toggle debug with backtick if in DEV mode
       if (import.meta.env.DEV && e.key === '`' && !e.shiftKey && !e.ctrlKey && !e.altKey && !e.metaKey) {
         // e.preventDefault();
@@ -33,7 +48,7 @@ export default function RookieHub() {
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [activeEvent, state.transitionModalText]);
+  }, [activeEvent, state, showSkillTree, showDebugHarness, handleAdvance]);
 
   if (!state.hasSelectedArchetype) {
     return <ArchetypeSelectScreen />;
@@ -43,16 +58,7 @@ export default function RookieHub() {
     return <RetirementScreen />;
   }
 
-  const handleAdvance = () => {
-    if (state.transitionModalText) return;
-    const nextEvent = getNextCareerEvent(state);
-    if (nextEvent) {
-      state.recordEventShown(nextEvent.id);
-      setActiveEvent(nextEvent);
-    } else {
-      state.advanceWeek();
-    }
-  };
+
 
   const handleCompleteEvent = () => {
     setActiveEvent(null);
@@ -169,13 +175,13 @@ export default function RookieHub() {
         </div>
       </header>
       
-      {state.careerTier === 'GLOBAL_ICON' && (
-        <div className="flex justify-between items-center bg-slate-950 border border-slate-800 p-6 rounded-3xl shadow-lg">
+      {(
+        <div className="flex flex-wrap gap-4 justify-between items-center bg-slate-950 border border-slate-800 p-6 rounded-3xl shadow-lg">
           <div className="flex items-center gap-5">
             <Award className="w-10 h-10 text-amber-400" />
             <div>
-              <p className="text-xs uppercase font-black tracking-widest text-slate-500 mb-1">Legacy Score</p>
-              <p className="text-3xl font-black text-amber-400 leading-none">{state.legacyScore}</p>
+              <p className="text-xs uppercase font-black tracking-widest text-slate-500 mb-1">Career progression</p>
+              <p className="text-3xl font-black text-amber-400 leading-none">{state.skillPoints} SP <span className="text-sm text-slate-400">· {state.careerXp % 40}/40 XP · {state.legacyScore} Legacy</span></p>
             </div>
           </div>
           <button 
@@ -188,6 +194,8 @@ export default function RookieHub() {
         </div>
       )}
 
+      <button type="button" onClick={() => useGameStore.getState().resetToMenu()} className="self-start text-sm text-slate-400 hover:text-white min-h-11">← Menu · career autosaved</button>
+      {!showSkillTree && <CareerDevelopment disabled={!!activeEvent || !!state.transitionModalText || showDebugHarness} />}
       {showSkillTree ? (
         <div className="flex-1">
           <SkillTree />
@@ -308,7 +316,7 @@ export default function RookieHub() {
         <div className="mt-4 pb-4">
           <button 
             onClick={handleAdvance}
-            disabled={!!activeEvent || !!state.transitionModalText}
+            disabled={!!activeEvent || !!state.transitionModalText || showDebugHarness}
             className="w-full btn-primary py-6 text-xl font-black uppercase tracking-widest rounded-3xl shadow-[0_0_40px_rgba(37,99,235,0.2)] hover:shadow-[0_0_60px_rgba(37,99,235,0.4)] transition-all disabled:opacity-50 disabled:cursor-not-allowed flex flex-col items-center justify-center gap-2"
           >
             Advance to Next Week
@@ -325,7 +333,7 @@ export default function RookieHub() {
               onClose={handleCompleteEvent}
             />
           ) : (
-            <EventModal 
+            <EventModal key={`${state.currentWeek}-${activeEvent.id}`}
               event={activeEvent as any}
               onComplete={handleCompleteEvent}
             />

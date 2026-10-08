@@ -1,3 +1,5 @@
+import type { SkillEffect } from './careerTypes';
+
 // ============================================================
 // IPL DRAFT SIMULATOR — CORE TYPES
 // Inspired by "500/0". Player drafts an 11, then a 20-over
@@ -15,6 +17,7 @@ export interface Player {
   allowedSlots: number[]; // which batting positions (1-11) this player can be drafted into
   batRating: number;      // 0-100: survival/quality for long innings
   powRating: number;      // 0-100: scoring/strike-rate explosiveness
+  activeSkillEffects?: SkillEffect[];
   bwlRating: number;      // 0-100: bowling strength, feeds team morale
 }
 
@@ -183,6 +186,21 @@ export interface BallLog {
   dismissalText?: string;
   currentTotal: number;
   currentWickets: number;
+  visual?: DeliveryVisual;
+}
+
+export interface FieldPosition {
+  name: string;
+  x: number;
+  y: number;
+}
+
+export interface DeliveryVisual {
+  bounce: { x: number; y: number };
+  shotEnd: { x: number; y: number } | null;
+  shotDirection: string;
+  fielders: FieldPosition[];
+  fieldSetting: 'Powerplay' | 'Middle overs' | 'Death overs';
 }
 
 export interface OverSummary {
@@ -202,6 +220,7 @@ export interface InningsResult {
   teamMoraleScore: number;
   playerStats: PlayerStats[];
   overLogs: OverSummary[];
+  ballLogs?: BallLog[];
 }
 
 export type PitchType = 'FLAT' | 'DUSTY' | 'GREEN' | 'BALANCED';
@@ -209,6 +228,7 @@ export type PitchType = 'FLAT' | 'DUSTY' | 'GREEN' | 'BALANCED';
 export interface UnifiedMatchResult {
   innings: InningsResult[];
   isWin: boolean;
+  isTie?: boolean;
   matchSummary: string;
   teamAnalysis: {
     verdict: string;
@@ -243,6 +263,7 @@ export interface PartialInningsState {
   nextBatterIndex: number;
   playerStats: PlayerStats[];
   overLogs: OverSummary[];
+  ballLogs?: BallLog[];
   currentOverLog: string[];
   unprepared: boolean;
   unpreparedReason: string | null;

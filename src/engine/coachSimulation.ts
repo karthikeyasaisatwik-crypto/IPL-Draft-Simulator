@@ -1,3 +1,7 @@
+import { DEFAULT_COACH_PLANS, getCoachPlanModifiers } from './coachTactics';
+import type { CoachPlans } from './coachTactics';
+import { recordDelivery } from './shotVisualizer';
+import { getMatchPerkMultiplier } from './matchPerks';
 // ============================================================
 // COACH MODE — CHUNKED SIMULATION ENGINE
 // This file is completely isolated from simulation.ts and
@@ -118,6 +122,7 @@ export function initPartialInnings(
     nextBatterIndex: 2,
     playerStats,
     overLogs: [],
+    ballLogs: [],
     currentOverLog: [],
     unprepared,
     unpreparedReason,
@@ -209,12 +214,14 @@ export function simulateCoachPhase(
   isBatting: boolean,
   preferredBowlers: string[] = [],
   keyMatchups: Matchup[] = [],
+  plans: CoachPlans = DEFAULT_COACH_PLANS,
 ): PartialInningsState {
   // Deep clone the state so we don't mutate the original
   const s: PartialInningsState = {
     ...state,
     playerStats: state.playerStats.map(ps => ({ ...ps })),
     overLogs: [...state.overLogs],
+    ballLogs: [...(state.ballLogs ?? [])],
     currentOverLog: [...state.currentOverLog],
     bowlerBalls: { ...(state.bowlerBalls || {}) },
   };
@@ -261,8 +268,9 @@ export function simulateCoachPhase(
     }
 
     // Apply mentality modifiers to batting ratings
-    const effectiveBat = striker.player.batRating * s.batRatingPenalty * mod.batMult;
-    const effectivePow = striker.player.powRating * s.moraleMultiplier * mod.powMult;
+    const perkMultiplier = getMatchPerkMultiplier(striker.player, s.playerStats[s.nonStrikerIndex].player, s.targetScore !== null);
+    const effectiveBat = perkMultiplier * striker.player.batRating * s.batRatingPenalty * mod.batMult;
+    const effectivePow = perkMultiplier * striker.player.powRating * s.moraleMultiplier * mod.powMult;
 
     // Base bowling rating uses the specific bowler active for this over
     const baseBowlingRating = currentBowler ? currentBowler.bwlRating : s.oppositionBowlingRating;
@@ -348,6 +356,14 @@ export function simulateCoachPhase(
     probFour = probFour * boundaryFactor * mod.boundaryScale;
     probSix = probSix * (boundaryFactor * (effectivePow >= 85 ? 1.15 : 1.0)) * mod.boundaryScale;
 
+    // Optional Coach plans are neutral by default and consume no extra RNG.
+    const plan = getCoachPlanModifiers(plans, isBatting, striker.player, currentBowler, striker.balls, ball);
+    probWicket *= plan.wicket;
+    probDot *= plan.dot;
+    probOneTwo *= plan.rotation;
+    probFour *= plan.boundary;
+    probSix *= plan.boundary;
+
     // --- Normalize ---
     const totalProb = probWicket + probDot + probOneTwo + probFour + probSix;
     probWicket /= totalProb;
@@ -401,6 +417,12 @@ export function simulateCoachPhase(
         s.nonStrikerIndex = temp;
       }
     }
+
+    s.ballLogs!.push(recordDelivery({
+      ballNumber: ball, overNumber, strikerName: striker.player.name, bowlerName: currentBowler?.name ?? 'Opposition attack',
+      runs: runsOnBall, isWicket, dismissalText: isWicket ? striker.dismissal : undefined,
+      currentTotal: s.totalRuns, currentWickets: s.totalWickets,
+    }));
 
     // End of over or innings
     if (ball % 6 === 0 || s.totalWickets >= 10 || (s.targetScore !== null && s.totalRuns >= s.targetScore)) {
@@ -457,6 +479,7 @@ export function finalizeInnings(partial: PartialInningsState): InningsResult {
     teamMoraleScore: partial.teamMoraleScore,
     playerStats,
     overLogs: partial.overLogs,
+    ballLogs: partial.ballLogs,
   };
 }
 
@@ -513,9 +536,13 @@ export function buildCoachMatchResult(
     };
   }
 
+  const isTie = innings1.totalRuns === innings2.totalRuns;
   let verdict = '';
   let comment = '';
-  if (isWin) {
+  if (isTie) {
+    verdict = 'MATCH TIED';
+    comment = 'Both teams finished level. Neither side could claim the victory.';
+  } else if (isWin) {
     verdict = 'TACTICAL MASTERCLASS';
     comment = 'Your coaching decisions shaped the match. Every phase adjustment paid off.';
   } else {
@@ -526,6 +553,7 @@ export function buildCoachMatchResult(
   return {
     innings: [innings1, innings2],
     isWin,
+    isTie,
     matchSummary,
     teamAnalysis: { verdict, comment },
     manOfTheMatch: motm,

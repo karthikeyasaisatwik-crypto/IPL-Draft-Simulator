@@ -1,98 +1,46 @@
 import { useCareerStore } from '../../store/careerStore';
 import { SKILL_NODES } from '../../engine/skillTreeData';
-import type { SkillNode } from '../../engine/careerTypes';
 import { Lock, CheckCircle2, Zap } from 'lucide-react';
 
+const BRANCHES = [
+  { prefix: 'chasing_', name: 'Chasing', description: 'Hold your nerve when the target climbs.' },
+  { prefix: 'leadership_', name: 'Leadership', description: 'Make the batter at the other end better.' },
+  { prefix: 'fitness_', name: 'Resilience', description: 'Recover faster and handle setbacks.' },
+  { prefix: 'craft_', name: 'Craft & connections', description: 'Train with purpose and build trust.' },
+];
+
 export default function SkillTree() {
-  const state = useCareerStore();
-  const { skillPoints, unlockedSkillNodes, unlockSkill } = state;
-
-  const handleUnlock = (node: SkillNode) => {
-    if (skillPoints >= node.spCost) {
-      unlockSkill(node.id, node.spCost);
-    }
-  };
-
-  const isUnlocked = (nodeId: string) => unlockedSkillNodes.includes(nodeId);
-  const isAffordable = (cost: number) => skillPoints >= cost;
-  const isPrerequisiteMet = (reqId?: string) => !reqId || isUnlocked(reqId);
-
-  const getStatusColor = (node: SkillNode) => {
-    if (isUnlocked(node.id)) return 'border-emerald-500 bg-emerald-500/10 text-emerald-400';
-    if (isPrerequisiteMet(node.prerequisiteId)) {
-      return isAffordable(node.spCost) 
-        ? 'border-amber-500 bg-amber-500/10 text-amber-400 hover:bg-amber-500/20 cursor-pointer'
-        : 'border-slate-600 bg-slate-800 text-slate-400 cursor-not-allowed';
-    }
-    return 'border-slate-800 bg-slate-950 text-slate-600 cursor-not-allowed opacity-50';
-  };
-
-  const renderNode = (node: SkillNode) => {
-    const unlocked = isUnlocked(node.id);
-    const prereqMet = isPrerequisiteMet(node.prerequisiteId);
-    
-    return (
-      <div 
-        key={node.id} 
-        onClick={() => prereqMet && isAffordable(node.spCost) && !unlocked && handleUnlock(node)}
-        className={`p-4 rounded-xl border-2 transition-all flex flex-col items-center text-center gap-2 relative z-10 w-48 ${getStatusColor(node)}`}
-      >
-        <div className="absolute -top-3 -right-3">
-          {unlocked ? (
-            <div className="bg-emerald-500 rounded-full p-1"><CheckCircle2 className="w-4 h-4 text-white" /></div>
-          ) : !prereqMet ? (
-            <div className="bg-slate-700 rounded-full p-1"><Lock className="w-4 h-4 text-slate-400" /></div>
-          ) : null}
-        </div>
-        
-        <h4 className="font-bold text-sm tracking-wider uppercase">{node.name}</h4>
-        <p className="text-[10px] leading-tight">{node.description}</p>
-        
-        {!unlocked && (
-          <div className="mt-2 bg-black/30 px-3 py-1 rounded-full text-xs font-black flex items-center gap-1">
-            <Zap className="w-3 h-3 text-accent-gold" /> {node.spCost} SP
-          </div>
-        )}
-      </div>
-    );
-  };
-
-  const chasingNodes = SKILL_NODES.filter(n => n.id.startsWith('chasing_'));
-  const leadershipNodes = SKILL_NODES.filter(n => n.id.startsWith('leadership_'));
-
+  const { skillPoints, unlockedSkillNodes, unlockSkill } = useCareerStore();
   return (
-    <div className="bg-slate-900 border border-slate-700 rounded-2xl p-6 shadow-2xl relative overflow-hidden">
-      <div className="flex justify-between items-center mb-8">
+    <section className="bg-slate-900 border border-slate-700 rounded-3xl p-5 md:p-7 shadow-xl">
+      <div className="flex flex-wrap justify-between items-center gap-4 mb-8">
         <div>
-          <h2 className="text-2xl font-black text-white uppercase tracking-widest">Ultimate Skill Tree</h2>
-          <p className="text-slate-400 text-sm">Earn 1 SP for every 20 Legacy points.</p>
+          <h2 className="text-2xl font-black text-white">Build your player</h2>
+          <p className="text-slate-400 text-sm mt-2 max-w-xl leading-relaxed">Start with 3 SP. Earn 1 SP per 40 career XP, claim goal rewards, and earn 1 SP for every 20 Legacy points. Perks in each branch stack.</p>
         </div>
-        <div className="bg-slate-950 border border-amber-500/30 px-6 py-3 rounded-xl flex items-center gap-3">
-          <Zap className="w-6 h-6 text-amber-500" />
-          <div className="flex flex-col">
-            <span className="text-[10px] uppercase font-black tracking-widest text-slate-500">Available</span>
-            <span className="text-2xl font-black text-amber-500 leading-none">{skillPoints} SP</span>
+        <span className="bg-amber-500/10 border border-amber-500/30 px-5 py-3 rounded-xl text-amber-400 text-xl font-bold flex items-center gap-2" role="status"><Zap className="w-5 h-5" /> {skillPoints} SP</span>
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-6">
+        {BRANCHES.map(branch => (
+          <div key={branch.prefix} className="space-y-4">
+            <div className="min-h-20"><h3 className="text-lg font-bold text-white">{branch.name}</h3><p className="text-sm text-slate-400 mt-1">{branch.description}</p></div>
+            {SKILL_NODES.filter(node => node.id.startsWith(branch.prefix)).map(node => {
+              const unlocked = unlockedSkillNodes.includes(node.id);
+              const prerequisite = SKILL_NODES.find(n => n.id === node.prerequisiteId);
+              const ready = !node.prerequisiteId || unlockedSkillNodes.includes(node.prerequisiteId);
+              const affordable = skillPoints >= node.spCost;
+              return (
+                <button type="button" key={node.id} onClick={() => unlockSkill(node.id)} disabled={unlocked || !ready || !affordable}
+                  className={`w-full text-left p-4 rounded-2xl border-2 min-h-40 flex flex-col gap-3 transition-colors ${unlocked ? 'border-emerald-500/50 bg-emerald-500/10' : ready && affordable ? 'border-amber-500/60 bg-amber-500/5 hover:bg-amber-500/15' : 'border-slate-800 bg-slate-950 disabled:cursor-not-allowed'}`}>
+                  <span className="flex items-start justify-between gap-2"><span className="font-bold text-white">{node.name}</span>{unlocked ? <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" /> : !ready ? <Lock className="w-4 h-4 text-slate-500 shrink-0" /> : <Zap className="w-4 h-4 text-amber-400 shrink-0" />}</span>
+                  <span className="text-sm text-slate-400 leading-relaxed">{node.description}</span>
+                  <span className={`text-xs font-bold mt-auto ${unlocked ? 'text-emerald-300' : 'text-amber-300'}`}>{unlocked ? 'Unlocked' : !ready ? `Requires ${prerequisite?.name}` : affordable ? `Unlock · ${node.spCost} SP` : `Need ${node.spCost} SP · ${node.spCost - skillPoints} more`}</span>
+                </button>
+              );
+            })}
           </div>
-        </div>
+        ))}
       </div>
-
-      <div className="flex flex-col md:flex-row gap-12 justify-around">
-        {/* Chasing Branch */}
-        <div className="flex flex-col items-center gap-6 relative">
-          <h3 className="text-sm font-black text-slate-300 uppercase tracking-widest mb-2 border-b border-slate-700 pb-2 w-full text-center">Chasing Branch</h3>
-          {/* Connecting Lines */}
-          <div className="absolute top-16 bottom-16 left-1/2 w-1 bg-slate-800 -translate-x-1/2 z-0"></div>
-          {chasingNodes.map(renderNode)}
-        </div>
-
-        {/* Leadership Branch */}
-        <div className="flex flex-col items-center gap-6 relative">
-          <h3 className="text-sm font-black text-slate-300 uppercase tracking-widest mb-2 border-b border-slate-700 pb-2 w-full text-center">Leadership Branch</h3>
-          {/* Connecting Lines */}
-          <div className="absolute top-16 bottom-16 left-1/2 w-1 bg-slate-800 -translate-x-1/2 z-0"></div>
-          {leadershipNodes.map(renderNode)}
-        </div>
-      </div>
-    </div>
+    </section>
   );
 }

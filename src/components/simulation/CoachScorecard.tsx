@@ -1,9 +1,11 @@
+import MatchAnalysisButton from './MatchAnalysisButton';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Trophy, ArrowRight, User, Zap, Shield, Activity, Mail } from 'lucide-react';
 import { useCoachStore } from '../../store/coachStore';
 import { useGameStore } from '../../store/gameStore';
 import type { InningsResult } from '../../engine/types';
 import CoachMailbox from './CoachMailbox';
+import CoachPlanReport from './CoachPlanReport';
 import { useState } from 'react';
 
 function TacticsBadge({ tactics, isBatting }: { tactics: number; isBatting: boolean }) {
@@ -97,7 +99,7 @@ export default function CoachScorecard() {
         </div>
         <h1
           className={`text-3xl md:text-5xl font-black mb-2 uppercase tracking-wide ${
-            result.isWin ? 'text-emerald-400' : 'text-rose-500'
+            result.isTie ? 'text-amber-400' : result.isWin ? 'text-emerald-400' : 'text-rose-500'
           }`}
         >
           {result.matchSummary}
@@ -118,6 +120,8 @@ export default function CoachScorecard() {
           </p>
         )}
       </header>
+      <MatchAnalysisButton result={result} />
+      <CoachPlanReport />
 
       {/* ── COACHING TACTICAL TIMELINE ── */}
       <div className="bg-slate-900 border border-slate-700/80 rounded-2xl p-6 mb-8 shadow-xl">

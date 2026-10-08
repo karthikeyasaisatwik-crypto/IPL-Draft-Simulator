@@ -35,7 +35,7 @@ export default function MainMenu() {
         <div className="mt-4 flex flex-col items-center gap-2.5">
           <div className="flex flex-row items-center justify-center gap-2 bg-slate-900/90 border border-slate-800 p-1 rounded-full shadow-inner">
             <button
-              className={`px-6 py-1.5 rounded-full text-xs md:text-sm font-extrabold tracking-wider transition-all duration-200 ${
+              className={`px-6 py-2.5 min-h-11 rounded-full text-xs md:text-sm font-extrabold tracking-wider transition-all duration-200 ${
                 difficulty === "EASY"
                   ? "bg-blue-600 text-white shadow-[0_0_15px_rgba(37,99,235,0.5)]"
                   : "text-slate-400 hover:text-slate-200"
@@ -45,7 +45,7 @@ export default function MainMenu() {
               EASY
             </button>
             <button
-              className={`px-6 py-1.5 rounded-full text-xs md:text-sm font-extrabold tracking-wider transition-all duration-200 ${
+              className={`px-6 py-2.5 min-h-11 rounded-full text-xs md:text-sm font-extrabold tracking-wider transition-all duration-200 ${
                 difficulty === "HARD"
                   ? "bg-red-600 text-white shadow-[0_0_15px_rgba(220,38,38,0.5)]"
                   : "text-slate-400 hover:text-slate-200"
@@ -69,8 +69,8 @@ export default function MainMenu() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 lg:gap-6 items-stretch w-full">
           
           {/* Card 1: H2H */}
-          <div
-            className="bg-slate-900/90 border border-slate-800 hover:border-indigo-500/50 rounded-2xl p-6 flex flex-col justify-between transition-all duration-300 hover:shadow-[0_0_25px_rgba(99,102,241,0.25)] hover:-translate-y-1 cursor-pointer group"
+          <button type="button" aria-label="Play H2H Exhibition"
+            className="text-left bg-slate-900/90 border border-slate-800 hover:border-indigo-500/50 rounded-2xl p-6 flex flex-col justify-between transition-all duration-300 hover:shadow-[0_0_25px_rgba(99,102,241,0.25)] hover:-translate-y-1 cursor-pointer group"
             onClick={() => {
               useCoachStore.getState().setCoachMode(false);
               handleSelect("H2H");
@@ -82,8 +82,8 @@ export default function MainMenu() {
               </div>
               <span className="text-[11px] font-extrabold uppercase tracking-widest text-indigo-400 mb-1 block">Head to Head</span>
               <h2 className="text-xl md:text-2xl font-black text-white mb-2">H2H Exhibition</h2>
-              <p className="text-slate-400 text-xs leading-relaxed mb-4">Draft your dream XI. Watch the match unfold with a full ball-by-ball sim.</p>
-              <ul className="space-y-2 mb-6 w-full text-xs text-slate-300">
+              <p className="text-slate-400 text-sm leading-relaxed mb-4">Draft your dream XI. Watch the match unfold with a full ball-by-ball sim.</p>
+              <ul className="space-y-2 mb-6 w-full text-sm text-slate-300">
                 <li className="flex items-center gap-2"><Shield className="w-3.5 h-3.5 shrink-0 text-indigo-400" /><span>AI drafts opponent XI</span></li>
                 <li className="flex items-center gap-2"><Shield className="w-3.5 h-3.5 shrink-0 text-indigo-400" /><span>2-innings match</span></li>
                 <li className="flex items-center gap-2"><Shield className="w-3.5 h-3.5 shrink-0 text-indigo-400" /><span>Dynamic match ticker</span></li>
@@ -92,11 +92,11 @@ export default function MainMenu() {
             <div className="mt-auto w-full py-2.5 px-4 rounded-xl font-bold text-xs bg-indigo-500/10 border border-indigo-500/30 text-indigo-300 group-hover:bg-indigo-600 group-hover:text-white flex items-center justify-center gap-1.5 transition-all">
               <span>Select Mode</span><ChevronRight className="w-4 h-4" />
             </div>
-          </div>
+          </button>
 
           {/* Card 2: Coach Mode */}
-          <div
-            className="bg-slate-900/90 border border-slate-800 hover:border-rose-500/50 rounded-2xl p-6 flex flex-col justify-between transition-all duration-300 hover:shadow-[0_0_25px_rgba(244,63,94,0.25)] hover:-translate-y-1 cursor-pointer group"
+          <button type="button" aria-label="Play Coach Mode"
+            className="text-left bg-slate-900/90 border border-slate-800 hover:border-rose-500/50 rounded-2xl p-6 flex flex-col justify-between transition-all duration-300 hover:shadow-[0_0_25px_rgba(244,63,94,0.25)] hover:-translate-y-1 cursor-pointer group"
             onClick={() => {
               useCoachStore.getState().setCoachMode(true);
               selectMode("H2H");
@@ -109,8 +109,8 @@ export default function MainMenu() {
               </div>
               <span className="text-[11px] font-extrabold uppercase tracking-widest text-rose-400 mb-1 block">Tactical Mode</span>
               <h2 className="text-xl md:text-2xl font-black text-white mb-2">Coach Mode</h2>
-              <p className="text-slate-400 text-xs leading-relaxed mb-4">Manage tactics mid-match. Pause at Powerplay and Death to adjust your mentality.</p>
-              <ul className="space-y-2 mb-6 w-full text-xs text-slate-300">
+              <p className="text-slate-400 text-sm leading-relaxed mb-4">Manage tactics mid-match. Pause at Powerplay and Death to adjust your mentality.</p>
+              <ul className="space-y-2 mb-6 w-full text-sm text-slate-300">
                 <li className="flex items-center gap-2"><Shield className="w-3.5 h-3.5 shrink-0 text-rose-400" /><span>Mid-match interventions</span></li>
                 <li className="flex items-center gap-2"><Shield className="w-3.5 h-3.5 shrink-0 text-rose-400" /><span>Batting & bowling tactics</span></li>
                 <li className="flex items-center gap-2"><Shield className="w-3.5 h-3.5 shrink-0 text-rose-400" /><span>Phase-by-phase control</span></li>
@@ -119,12 +119,11 @@ export default function MainMenu() {
             <div className="mt-auto w-full py-2.5 px-4 rounded-xl font-bold text-xs bg-rose-500/10 border border-rose-500/30 text-rose-300 group-hover:bg-rose-600 group-hover:text-white flex items-center justify-center gap-1.5 transition-all">
               <span>Select Mode</span><ChevronRight className="w-4 h-4" />
             </div>
-          </div>
+          </button>
 
           {/* Card 3: Gauntlet */}
-          <div
-            className="bg-slate-900/90 border border-slate-800 rounded-2xl p-6 flex flex-col justify-between opacity-70 cursor-not-allowed grayscale"
-            onClick={() => alert("IPL Gauntlet Mode is Coming Soon!")}
+          <button type="button" aria-label="IPL Gauntlet coming soon" disabled
+            className="text-left bg-slate-900/90 border border-slate-800 rounded-2xl p-6 flex flex-col justify-between opacity-70 cursor-not-allowed grayscale"
           >
             <div>
               <div className="w-12 h-12 rounded-xl flex items-center justify-center mb-4 text-white shadow-md bg-gradient-to-br from-amber-500 to-red-500">
@@ -132,8 +131,8 @@ export default function MainMenu() {
               </div>
               <span className="text-[11px] font-extrabold uppercase tracking-widest text-amber-400 mb-1 block">Campaign Mode</span>
               <h2 className="text-xl md:text-2xl font-black text-white mb-2">IPL Gauntlet</h2>
-              <p className="text-slate-400 text-xs leading-relaxed mb-4">Take on every IPL franchise in order. Win the league or fall trying.</p>
-              <ul className="space-y-2 mb-6 w-full text-xs text-slate-300">
+              <p className="text-slate-400 text-sm leading-relaxed mb-4">Take on every IPL franchise in order. Win the league or fall trying.</p>
+              <ul className="space-y-2 mb-6 w-full text-sm text-slate-300">
                 <li className="flex items-center gap-2"><Shield className="w-3.5 h-3.5 shrink-0 text-amber-400" /><span>10-match campaign</span></li>
                 <li className="flex items-center gap-2"><Shield className="w-3.5 h-3.5 shrink-0 text-amber-400" /><span>Rising difficulty</span></li>
                 <li className="flex items-center gap-2"><Shield className="w-3.5 h-3.5 shrink-0 text-amber-400" /><span>Win/loss record</span></li>
@@ -142,11 +141,11 @@ export default function MainMenu() {
             <div className="mt-auto w-full py-2.5 px-4 rounded-xl font-bold text-xs bg-amber-500/10 border border-amber-500/20 text-amber-400/60 flex items-center justify-center gap-1.5">
               <span>COMING SOON</span>
             </div>
-          </div>
+          </button>
 
           {/* Card 4: Chase 300 */}
-          <div
-            className="bg-slate-900/90 border border-slate-800 hover:border-emerald-500/50 rounded-2xl p-6 flex flex-col justify-between transition-all duration-300 hover:shadow-[0_0_25px_rgba(16,185,129,0.25)] hover:-translate-y-1 cursor-pointer group"
+          <button type="button" aria-label="Play Chase 300"
+            className="text-left bg-slate-900/90 border border-slate-800 hover:border-emerald-500/50 rounded-2xl p-6 flex flex-col justify-between transition-all duration-300 hover:shadow-[0_0_25px_rgba(16,185,129,0.25)] hover:-translate-y-1 cursor-pointer group"
             onClick={() => {
               useCoachStore.getState().setCoachMode(false);
               handleSelect("CHASE_300");
@@ -158,8 +157,8 @@ export default function MainMenu() {
               </div>
               <span className="text-[11px] font-extrabold uppercase tracking-widest text-emerald-400 mb-1 block">Survival Mode</span>
               <h2 className="text-xl md:text-2xl font-black text-white mb-2">Chase 300</h2>
-              <p className="text-slate-400 text-xs leading-relaxed mb-4">Chase down 300 in 20 overs against maximum-difficulty bowling. Can your XI survive?</p>
-              <ul className="space-y-2 mb-6 w-full text-xs text-slate-300">
+              <p className="text-slate-400 text-sm leading-relaxed mb-4">Chase down 300 in 20 overs against maximum-difficulty bowling. Can your XI survive?</p>
+              <ul className="space-y-2 mb-6 w-full text-sm text-slate-300">
                 <li className="flex items-center gap-2"><Shield className="w-3.5 h-3.5 shrink-0 text-emerald-400" /><span>Target: 300 runs</span></li>
                 <li className="flex items-center gap-2"><Shield className="w-3.5 h-3.5 shrink-0 text-emerald-400" /><span>Max alien difficulty</span></li>
                 <li className="flex items-center gap-2"><Shield className="w-3.5 h-3.5 shrink-0 text-emerald-400" /><span>Single innings</span></li>
@@ -168,15 +167,15 @@ export default function MainMenu() {
             <div className="mt-auto w-full py-2.5 px-4 rounded-xl font-bold text-xs bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 group-hover:bg-emerald-600 group-hover:text-white flex items-center justify-center gap-1.5 transition-all">
               <span>Select Mode</span><ChevronRight className="w-4 h-4" />
             </div>
-          </div>
+          </button>
           </div>
         </div>
 
         {/* CAREER MODE BANNER */}
         <div className="w-full max-w-7xl mx-auto mb-8 px-2 shrink-0">
-          <div 
+          <button type="button" aria-label="Start The Long Innings career"
             onClick={() => useGameStore.getState().startCareer()}
-            className="w-full bg-gradient-to-r from-slate-900 to-slate-900 border border-amber-500/30 hover:border-amber-400/80 rounded-2xl p-6 md:p-8 flex flex-col md:flex-row items-center justify-between cursor-pointer group transition-all duration-300 hover:shadow-[0_0_30px_rgba(251,191,36,0.2)]"
+            className="text-left w-full bg-gradient-to-r from-slate-900 to-slate-900 border border-amber-500/30 hover:border-amber-400/80 rounded-2xl p-6 md:p-8 flex flex-col md:flex-row items-center justify-between cursor-pointer group transition-all duration-300 hover:shadow-[0_0_30px_rgba(251,191,36,0.2)]"
           >
             <div className="flex items-center gap-6 mb-4 md:mb-0">
               <div className="w-16 h-16 rounded-2xl flex items-center justify-center text-white shadow-lg bg-gradient-to-br from-amber-500 to-orange-600 shrink-0">
@@ -185,13 +184,13 @@ export default function MainMenu() {
               <div>
                 <span className="text-[11px] font-extrabold uppercase tracking-widest text-amber-400 mb-1 block">Single-Player RPG</span>
                 <h2 className="text-2xl md:text-3xl font-black text-white mb-2 group-hover:text-amber-400 transition-colors">The Long Innings</h2>
-                <p className="text-slate-400 text-sm max-w-2xl">Start as an 18-year-old rookie. Balance academics, parental expectations, finances, and dressing room politics on your journey to the top. A fully isolated narrative RPG experience.</p>
+                <p className="text-slate-400 text-sm max-w-2xl">Start as an 18-year-old rookie. Balance academics, parental expectations, finances, and dressing room politics on your journey to the top. Train, unlock perks, build rivalries, and earn your place in the XI.</p>
               </div>
             </div>
             <div className="py-3 px-6 rounded-xl font-bold text-sm bg-amber-500/10 border border-amber-500/30 text-amber-400 group-hover:bg-amber-500 group-hover:text-slate-900 flex items-center gap-2 transition-all shrink-0">
               <span>Start Career</span><ChevronRight className="w-5 h-5" />
             </div>
-          </div>
+          </button>
         </div>
 
       {/* 4. RULES & RATINGS (Dedicated section positioned cleanly below cards) */}

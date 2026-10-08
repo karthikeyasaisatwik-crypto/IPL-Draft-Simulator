@@ -1,8 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useCareerStore, STAT_DIRECTIONS } from '../../store/careerStore';
 import type { CareerEvent, CareerChoice, ActiveModifier } from '../../engine/careerTypes';
 import type { StatKey } from '../../store/careerStore';
+import { CAREER_NPCS } from '../../engine/careerExpansion';
 import { ChevronRight, Zap } from 'lucide-react';
 
 interface Props {
@@ -21,36 +22,15 @@ interface ChoiceOutcome {
 export default function EventModal({ event, onComplete }: Props) {
   const [outcomeData, setOutcomeData] = useState<ChoiceOutcome | null>(null);
   const state = useCareerStore();
+  const completed = useRef(false);
 
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (outcomeData) {
-        if (e.code === 'Space' || e.code === 'Enter') {
-          e.preventDefault();
-          handleContinue();
-        }
-      } else {
-        const choiceIndex = parseInt(e.key) - 1;
-        if (!isNaN(choiceIndex) && choiceIndex >= 0 && choiceIndex < event.choices.length) {
-          const choice = event.choices[choiceIndex];
-          let isLocked = false;
-          if (choice.requiredStat) {
-            const currentVal = state[choice.requiredStat.stat];
-            isLocked = typeof currentVal === 'number' && currentVal < choice.requiredStat.min;
-          }
-          if (!isLocked) {
-             handleChoice(choice);
-          }
-        }
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [outcomeData, event, state, onComplete]);
 
-  const handleChoice = (choice: CareerChoice) => {
+
+  const handleChoice = useCallback((choice: CareerChoice) => {
+    if (outcomeData || (choice.requiredStat && typeof state[choice.requiredStat.stat] === 'number' && (state[choice.requiredStat.stat] as number) < choice.requiredStat.min)) return;
     let finalConsequences: Partial<Record<StatKey, number>> = {};
     let finalModifiers: ActiveModifier[] = [];
+    let challengeWon = false;
     let finalOutcomeText = choice.outcomeText || 'Choice made.';
 
     if (choice.risky) {
@@ -60,6 +40,7 @@ export default function EventModal({ event, onComplete }: Props) {
       const roll = Math.random();
       const success = roll < finalChance;
 
+      challengeWon = success;
       if (success) {
         finalConsequences = choice.risky.onSuccess || {};
         finalModifiers = choice.risky.onSuccessModifiers || [];
@@ -76,6 +57,8 @@ export default function EventModal({ event, onComplete }: Props) {
 
     const apply = () => {
       state.applyStatChanges(finalConsequences);
+      if (choice.relationshipChanges) state.changeRelationships(choice.relationshipChanges);
+      if (choice.rivalChallenge && challengeWon) state.recordRivalWin();
       if (finalModifiers.length > 0) {
         finalModifiers.forEach(m => state.addActiveModifier(m));
       }
@@ -102,14 +85,43 @@ export default function EventModal({ event, onComplete }: Props) {
     };
 
     setOutcomeData({ choice, text: finalOutcomeText, consequences: finalConsequences, modifiers: finalModifiers, apply });
-  };
+  }, [state, outcomeData]);
 
-  const handleContinue = () => {
+  const handleContinue = useCallback(() => {
+    if (completed.current || !outcomeData) return;
+    completed.current = true;
     if (outcomeData) {
       outcomeData.apply();
     }
     onComplete();
-  };
+  }, [outcomeData, onComplete]);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.repeat || (e.target instanceof Element && e.target.closest('input, textarea, select, [contenteditable]'))) return;
+      if (outcomeData) {
+        if (e.code === 'Space' || e.code === 'Enter') {
+          e.preventDefault();
+          handleContinue();
+        }
+      } else {
+        const choiceIndex = parseInt(e.key) - 1;
+        if (!isNaN(choiceIndex) && choiceIndex >= 0 && choiceIndex < event.choices.length) {
+          const choice = event.choices[choiceIndex];
+          let isLocked = false;
+          if (choice.requiredStat) {
+            const currentVal = state[choice.requiredStat.stat];
+            isLocked = typeof currentVal === 'number' && currentVal < choice.requiredStat.min;
+          }
+          if (!isLocked) {
+             handleChoice(choice);
+          }
+        }
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [outcomeData, event, state, handleContinue, handleChoice]);
 
   const getDeltaColorClass = (stat: string, delta: number) => {
     const dir = STAT_DIRECTIONS[stat as keyof typeof STAT_DIRECTIONS];
@@ -126,7 +138,7 @@ export default function EventModal({ event, onComplete }: Props) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+    <div role="dialog" aria-modal="true" aria-label={event.title} className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
       <AnimatePresence mode="wait">
         {!outcomeData ? (
           <motion.div 
@@ -191,7 +203,7 @@ export default function EventModal({ event, onComplete }: Props) {
             key="outcome"
             initial={{ opacity: 0, scale: 0.95 }} 
             animate={{ opacity: 1, scale: 1 }} 
-            className="bg-slate-900 border border-slate-700 p-10 rounded-3xl w-full max-w-2xl shadow-2xl flex flex-col items-center text-center"
+            className="bg-slate-900 border border-slate-700 p-5 sm:p-10 rounded-3xl w-full max-w-2xl shadow-2xl flex flex-col items-center text-center max-h-[90vh] overflow-y-auto"
           >
             <h3 className="text-3xl font-black text-white mb-6">Outcome</h3>
             <p className="text-slate-300 text-xl leading-relaxed mb-10">{outcomeData.text}</p>
@@ -212,6 +224,11 @@ export default function EventModal({ event, onComplete }: Props) {
                 </motion.div>
               ))}
 
+              {Object.entries(outcomeData.choice.relationshipChanges ?? {}).map(([id, delta]) => (
+                <span key={id} className="px-4 py-2 rounded-xl border border-violet-700 text-sm font-bold text-violet-300">
+                  {CAREER_NPCS.find(npc => npc.id === id)?.name} bond {delta! > 0 ? '+' : ''}{delta}{state.unlockedSkillNodes.includes('craft_2') && delta! > 0 ? ' (+perk bonus)' : ''}
+                </span>
+              ))}
               {outcomeData.modifiers.map((mod, i) => (
                 <motion.div 
                   initial={{ opacity: 0, y: 10 }}

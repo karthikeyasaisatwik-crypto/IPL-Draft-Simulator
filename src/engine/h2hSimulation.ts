@@ -1,4 +1,6 @@
-import type { Player, UnifiedMatchResult, InningsResult, PlayerStats, OverSummary, PitchType } from './types';
+import { recordDelivery } from './shotVisualizer';
+import { getMatchPerkMultiplier } from './matchPerks';
+import type { Player, UnifiedMatchResult, InningsResult, PlayerStats, OverSummary, BallLog, PitchType } from './types';
 import { evaluateChase300Squad } from './simulation'; // We can reuse the evaluation logic
 
 export function simulateH2HMatch(userSquad: Player[], aiSquad: Player[], userTeamName: string, aiTeamName: string, userBatsFirst: boolean, pitchType: PitchType = 'BALANCED'): UnifiedMatchResult {
@@ -64,9 +66,13 @@ export function simulateH2HMatch(userSquad: Player[], aiSquad: Player[], userTea
   }
 
   // Post-match verdict
+  const isTie = innings1.totalRuns === innings2.totalRuns;
   let verdict = '';
   let comment = '';
-  if (isWin) {
+  if (isTie) {
+    verdict = 'MATCH TIED';
+    comment = 'Both teams finished level. Neither side could claim the victory.';
+  } else if (isWin) {
     verdict = 'OUTSTANDING VICTORY';
     comment = 'You outplayed the opposition in every department. A tactical masterclass.';
   } else {
@@ -77,6 +83,7 @@ export function simulateH2HMatch(userSquad: Player[], aiSquad: Player[], userTea
   return {
     innings: [innings1, innings2],
     isWin,
+    isTie,
     matchSummary,
     teamAnalysis: { verdict, comment },
     manOfTheMatch: motm,
@@ -106,6 +113,7 @@ function simulateInnings(squad: Player[], teamName: string, targetScore: number 
   }));
 
   const overLogs: OverSummary[] = [];
+  const ballLogs: BallLog[] = [];
   let currentOverLog: string[] = [];
 
   let totalRuns = 0;
@@ -148,25 +156,9 @@ function simulateInnings(squad: Player[], teamName: string, targetScore: number 
     let effectivePow = striker.player.powRating * moraleMultiplier;
 
     const nonStriker = playerStats[nonStrikerIndex];
-    const strikerEffects = (striker.player as any).activeSkillEffects;
-    const nonStrikerEffects = (nonStriker.player as any).activeSkillEffects;
-    
-    if (strikerEffects) {
-      for (const eff of strikerEffects) {
-        if (eff.type === 'chasing_boost' && targetScore !== null) {
-          effectivePow *= eff.magnitude;
-          effectiveBat *= eff.magnitude;
-        }
-      }
-    }
-    if (nonStrikerEffects) {
-      for (const eff of nonStrikerEffects) {
-        if (eff.type === 'partner_boost') {
-          effectivePow *= eff.magnitude;
-          effectiveBat *= eff.magnitude;
-        }
-      }
-    }
+    const perkMultiplier = getMatchPerkMultiplier(striker.player, nonStriker.player, targetScore !== null);
+    effectivePow *= perkMultiplier;
+    effectiveBat *= perkMultiplier;
 
     // --- 3. Global Probability Rebalance ---
     let probWicket = 0.038;  // Reduced base wicket chance
@@ -270,6 +262,13 @@ function simulateInnings(squad: Player[], teamName: string, targetScore: number 
       }
     }
 
+    ballLogs.push(recordDelivery({
+      ballNumber: ballsBowled, overNumber, strikerName: striker.player.name,
+      bowlerName: isWicket ? (striker.dismissal.match(/(?:^b | b )(.+)$/)?.[1] ?? 'Opposition attack') : 'Opposition attack',
+      runs: runsOnBall, isWicket, dismissalText: isWicket ? striker.dismissal : undefined,
+      currentTotal: totalRuns, currentWickets: totalWickets,
+    }));
+
     if (ball % 6 === 0 || totalWickets >= 10 || (targetScore && totalRuns >= targetScore)) {
       const summaryText = currentOverLog.join(', ');
       overLogs.push({
@@ -303,7 +302,8 @@ function simulateInnings(squad: Player[], teamName: string, targetScore: number 
     unpreparedReason,
     teamMoraleScore: squadEval.teamMorale,
     playerStats,
-    overLogs
+    overLogs,
+    ballLogs
   };
 }
 

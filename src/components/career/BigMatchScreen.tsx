@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useCareerStore } from '../../store/careerStore';
 import { getCareerMatchSquad, generateSupportingCast, resolveBigMatchOutcome } from '../../engine/careerMatchBridge';
 import { simulateChase300 } from '../../engine/simulation';
@@ -12,11 +12,14 @@ interface BigMatchScreenProps {
 
 export function BigMatchScreen({ event, onClose }: BigMatchScreenProps) {
   const state = useCareerStore();
+  const simulated = useRef(false);
   const [matchResult, setMatchResult] = useState<any>(null);
   const [protagonistStats, setProtagonistStats] = useState<any>(null);
   const [outcomeModifiers, setOutcomeModifiers] = useState<ActiveModifier[]>([]);
 
   useEffect(() => {
+    if (simulated.current) return;
+    simulated.current = true;
     // Run simulation only once
     const squad = getCareerMatchSquad(state, event.quality);
     const oppBowling = Math.round(90 * event.bowlingDifficultyMultiplier);
@@ -46,7 +49,7 @@ export function BigMatchScreen({ event, onClose }: BigMatchScreenProps) {
       turnPlayed: state.currentWeek
     });
 
-  }, []); // Run on mount
+  }, [state, event]); // Guard prevents duplicate rewards under StrictMode.
 
   if (!matchResult) return <div>Simulating...</div>;
 
@@ -57,7 +60,7 @@ export function BigMatchScreen({ event, onClose }: BigMatchScreenProps) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">
-      <div className="max-w-xl w-full p-8 rounded-3xl bg-slate-900 border-2 border-slate-700 shadow-2xl relative overflow-hidden">
+      <div className="max-w-xl w-full p-8 rounded-3xl bg-slate-900 border-2 border-slate-700 shadow-2xl relative overflow-y-auto max-h-[90vh]">
         {/* Header */}
         <div className="flex items-center gap-4 mb-6">
           <div className={`w-16 h-16 rounded-full flex items-center justify-center ${isWin ? 'bg-emerald-500/20 text-emerald-400' : 'bg-rose-500/20 text-rose-400'}`}>

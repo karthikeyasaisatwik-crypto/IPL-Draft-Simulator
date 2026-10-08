@@ -31,6 +31,8 @@ export interface CareerChoice {
   outcomeText?: string;
   isCaptain?: boolean;
   managerCommissionRate?: number;
+  relationshipChanges?: Partial<Record<NpcId, number>>;
+  rivalChallenge?: NpcId;
 }
 
 export interface CareerEvent {
@@ -47,9 +49,12 @@ export interface CareerEvent {
 }
 
 export interface SkillEffect {
-  type: 'chasing_boost' | 'partner_boost';
+  type: 'chasing_boost' | 'partner_boost' | 'recovery_boost' | 'training_boost' | 'relationship_boost' | 'pressure_shield';
   magnitude: number;
 }
+
+export type NpcId = 'arjun' | 'zoya' | 'dev' | 'meera';
+export type WeeklyFocus = 'nets' | 'recovery' | 'study' | 'mentor';
 
 export interface SkillNode {
   id: string;

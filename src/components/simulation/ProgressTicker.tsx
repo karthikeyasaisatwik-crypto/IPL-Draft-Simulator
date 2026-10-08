@@ -1,206 +1,56 @@
-import { useState, useEffect, useRef } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { useState, useEffect, useMemo } from 'react';
 import { useGameStore } from '../../store/gameStore';
-import { FastForward, Play, SkipForward } from 'lucide-react';
-import type { OverSummary } from '../../engine/types';
-
-interface TickerFrame {
-  inningsIndex: number;
-  teamName: string;
-  overData: OverSummary;
-  isEnd: boolean;
-}
+import { buildPlaybackFrames } from '../../engine/matchPlayback';
+import MatchRadar from './MatchRadar';
 
 export default function ProgressTicker() {
-  const result = useGameStore((s) => s.lastMatchResult);
-  const finishSimulation = useGameStore((s) => s.finishSimulation);
-
-  const [currentFrameIndex, setCurrentFrameIndex] = useState(0);
-  const [animationSpeed, setAnimationSpeed] = useState(800);
-  const [displayedLogs, setDisplayedLogs] = useState<string[]>([]);
-  
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-
+  const result = useGameStore(s => s.lastMatchResult);
+  const finish = useGameStore(s => s.finishSimulation);
+  const frames = useMemo(() => result ? buildPlaybackFrames(result) : [], [result]);
+  const [cursor, setCursor] = useState(0);
+  const [paused, setPaused] = useState(false);
+  const [fast, setFast] = useState(false);
+  const [skipped, setSkipped] = useState(false);
+  useEffect(() => { if (!result) finish(); }, [result, finish]);
   useEffect(() => {
-    if (!result) {
-      finishSimulation();
-    }
-  }, [result, finishSimulation]);
-
-  // Flatten the match into a linear sequence of frames
-  const frames: TickerFrame[] = [];
-  if (result) {
-    result.innings.forEach((inn, iIndex) => {
-      inn.overLogs.forEach(ol => {
-        frames.push({
-          inningsIndex: iIndex,
-          teamName: inn.teamName,
-          overData: ol,
-          isEnd: false
-        });
-      });
-      // Add an innings break or end frame
-      frames.push({
-        inningsIndex: iIndex,
-        teamName: inn.teamName,
-        overData: { overNumber: 0, summaryText: 'INNINGS COMPLETE', runs: 0, wickets: 0 },
-        isEnd: true
-      });
-    });
-  }
-
-  useEffect(() => {
-    if (!result || frames.length === 0) return;
-
-    const tick = () => {
-      setCurrentFrameIndex((prevIndex) => {
-        const nextIndex = prevIndex + 1;
-        
-        if (nextIndex <= frames.length) {
-          const frame = frames[nextIndex - 1];
-          let eventString = '';
-          
-          if (frame.isEnd) {
-             eventString = `--- INNINGS ${frame.inningsIndex + 1} COMPLETE (${frame.teamName}) ---`;
-          } else {
-             const overData = frame.overData;
-             eventString = `Ov ${overData.overNumber} (${frame.teamName}): ${overData.runs} runs. ${overData.summaryText}`;
-             if (overData.wickets > 0) {
-               eventString = `OUT! Wicket falls in Over ${overData.overNumber} (${frame.teamName})`;
-             }
-          }
-          
-          setDisplayedLogs((prev) => [...prev, eventString]);
-        }
-
-        if (nextIndex >= frames.length) {
-          if (intervalRef.current) clearInterval(intervalRef.current);
-          setTimeout(() => { finishSimulation(); }, 2000);
-          return prevIndex;
-        }
-
-        return nextIndex;
-      });
-    };
-
-    intervalRef.current = setInterval(tick, animationSpeed);
-
-    return () => {
-      if (intervalRef.current) clearInterval(intervalRef.current);
-    };
-  }, [result, animationSpeed, finishSimulation, frames.length]);
-
-  if (!result || frames.length === 0) return null;
-
-  // Calculate current state
-  const activeFrame = frames[Math.min(currentFrameIndex, frames.length - 1)];
-  const currentInnings = result.innings[activeFrame.inningsIndex];
-  
-  // Calculate runs/wickets for the *current innings* up to this frame
-  let currentRuns = 0;
-  let currentWickets = 0;
-  let currentOvers = '0.0';
-
-  if (!activeFrame.isEnd && currentFrameIndex > 0) {
-    // Find all frames in this innings up to the current one
-    const inningsFrames = frames.slice(0, currentFrameIndex).filter(f => f.inningsIndex === activeFrame.inningsIndex && !f.isEnd);
-    currentRuns = inningsFrames.reduce((sum, f) => sum + f.overData.runs, 0);
-    currentWickets = inningsFrames.reduce((sum, f) => sum + f.overData.wickets, 0);
-    currentOvers = `${inningsFrames.length}.0`;
-  } else if (activeFrame.isEnd) {
-    currentRuns = currentInnings.totalRuns;
-    currentWickets = currentInnings.totalWickets;
-    currentOvers = currentInnings.oversBowled;
-  }
-
-  // Calculate Target (if in Innings 2)
-  let targetBanner = 'SETTING TARGET...';
-  let targetScore = 300; // default for Chase 300
-  if (activeFrame.inningsIndex === 1 && result.innings.length > 1) {
-    targetScore = result.innings[0].totalRuns + 1;
-    targetBanner = `TARGET · ${targetScore}`;
-  } else if (result.innings.length === 1) {
-    targetBanner = `TARGET · 300`;
-  }
-
-  const oversFacedNum = parseFloat(currentOvers);
-  const currentRunRate = oversFacedNum > 0 ? (currentRuns / Math.floor(oversFacedNum)).toFixed(2) : '0.00';
-  const progressPercent = Math.min((currentRuns / targetScore) * 100, 100);
-
-  const handleSkip = () => {
-    if (intervalRef.current) clearInterval(intervalRef.current);
-    finishSimulation();
-  };
-
+    if (paused || skipped || !frames.length) return;
+    const frame = frames[Math.min(cursor, frames.length - 1)];
+    const timeout = setTimeout(() => {
+      if (cursor >= frames.length - 1) finish();
+      else setCursor(i => i + 1);
+    }, frame.isEnd ? 1800 : fast ? 120 : 700);
+    return () => clearTimeout(timeout);
+  }, [frames, cursor, paused, fast, skipped, finish]);
+  if (!result || !frames.length) return null;
+  const frame = frames[Math.min(cursor, frames.length - 1)];
+  const innings = result.innings[frame.inningsIndex];
+  const chasing = result.innings.length === 1 || frame.inningsIndex === 1;
+  const target = result.innings.length === 1 ? 300 : result.innings[0].totalRuns + 1;
+  const overs = `${Math.floor(frame.balls / 6)}.${frame.balls % 6}`;
+  const logs = frames.slice(Math.max(0, cursor - 5), cursor + 1);
   return (
-    <motion.div
-      className="ticker-screen"
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      transition={{ duration: 0.5 }}
-    >
-      <div className="ticker-container">
-        
-        <header className="ticker-header">
-          <div className="ticker-target-banner">{targetBanner}</div>
-          
-          <div className="text-xl font-bold text-gray-400 mb-2 mt-4">{activeFrame.teamName.toUpperCase()}</div>
-          
-          <div className="ticker-score-massive">
-            {currentRuns} <span className="ticker-wickets">/ {currentWickets}</span>
-          </div>
-          
-          <div className="ticker-meta">
-            <span className="ticker-overs">{currentOvers} OV</span>
-            <span className="ticker-dot">·</span>
-            <span className="ticker-rr">RR {currentRunRate}</span>
-          </div>
-
-          <div className="ticker-progress-bg">
-            <motion.div 
-              className="ticker-progress-fill"
-              initial={{ width: 0 }}
-              animate={{ width: `${progressPercent}%` }}
-              transition={{ duration: 0.2 }}
-            />
-          </div>
+    <main className="min-h-screen w-full px-3 py-6 sm:p-8">
+      <div className="mx-auto max-w-5xl overflow-hidden rounded-3xl border border-slate-700 bg-slate-900 shadow-2xl">
+        <header className="border-b border-slate-700 p-5 text-center">
+          <p className="text-xs font-bold tracking-widest text-amber-400">{chasing ? `TARGET · ${target}` : 'SETTING TARGET'}</p>
+          <h1 className="mt-2 text-lg font-bold text-slate-300">{frame.teamName}</h1>
+          <p className="my-2 text-6xl font-black text-white">{frame.runs}<span className="text-3xl text-slate-400"> / {frame.wickets}</span></p>
+          <p className="text-sm text-slate-400">{overs} OV · RR {frame.balls ? (frame.runs * 6 / frame.balls).toFixed(2) : '0.00'}{chasing && ` · Need ${Math.max(0, target - frame.runs)} off ${Math.max(0, 120 - frame.balls)} balls`}</p>
         </header>
-
-        <div className="ticker-feed">
-          <div className="ticker-feed-inner">
-            <AnimatePresence initial={false}>
-              {displayedLogs.map((log, i) => (
-                <motion.div
-                  key={i}
-                  className={`ticker-event ${log.includes('OUT') ? 'event-wicket' : ''} ${log.includes('INNINGS COMPLETE') ? 'event-innings-break text-center text-accent-gold' : ''}`}
-                  initial={{ opacity: 0, y: 20, scale: 0.95 }}
-                  animate={{ opacity: 1, y: 0, scale: 1 }}
-                  transition={{ type: 'spring', stiffness: 300, damping: 25 }}
-                >
-                  {log}
-                </motion.div>
-              ))}
-            </AnimatePresence>
-          </div>
+        <div className="grid gap-5 p-4 md:grid-cols-2">
+          <MatchRadar key={frame.inningsIndex} delivery={frame.delivery} deliveries={innings.ballLogs?.slice(0, frame.deliveriesShown)} />
+          <section className="flex min-w-0 flex-col justify-end gap-3 rounded-2xl border border-slate-700 bg-slate-950 p-4" aria-label="Match commentary">
+            <h2 className="mb-auto text-xs font-bold uppercase tracking-widest text-slate-400">Ball by ball</h2>
+            {logs.map((log, i) => <p key={cursor - logs.length + i} className={`rounded-xl border border-slate-800 p-3 text-sm ${log.delivery?.isWicket ? 'text-rose-400' : log.isEnd ? 'text-amber-400' : 'text-slate-300'}`}>{log.commentary}</p>)}
+          </section>
         </div>
-
-        <footer className="ticker-controls">
-          <button 
-            className={`ticker-btn ${animationSpeed === 200 ? 'active' : ''}`}
-            onClick={() => setAnimationSpeed(animationSpeed === 800 ? 200 : 800)}
-          >
-            {animationSpeed === 800 ? <FastForward className="w-5 h-5" /> : <Play className="w-5 h-5" />}
-            {animationSpeed === 800 ? 'FAST' : 'NORMAL'}
-          </button>
-          
-          <button className="ticker-btn skip" onClick={handleSkip}>
-            <SkipForward className="w-5 h-5" />
-            SKIP TO END
-          </button>
+        <footer className="flex flex-wrap items-center justify-center gap-3 border-t border-slate-700 p-4">
+          <button className="ticker-btn" onClick={() => setPaused(p => !p)}>{paused ? 'Resume' : 'Pause'}</button>
+          <button className="ticker-btn" disabled={cursor >= frames.length - 1} onClick={() => { setPaused(true); setCursor(i => Math.min(i + 1, frames.length - 1)); }}>Next ball</button>
+          <button className={`ticker-btn ${fast ? 'active' : ''}`} aria-pressed={fast} onClick={() => setFast(f => !f)}>{fast ? 'Normal speed' : 'Fast playback'}</button>
+          <button className="ticker-btn skip" onClick={() => { setSkipped(true); finish(); }}>Skip to end</button>
         </footer>
-
       </div>
-    </motion.div>
+    </main>
   );
 }

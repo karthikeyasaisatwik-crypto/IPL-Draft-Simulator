@@ -4,8 +4,9 @@ import { SKILL_NODES } from './skillTreeData';
 import type { SkillEffect, ActiveModifier } from './careerTypes';
 
 export function deriveMatchStats(state: CareerState) {
-  const batRating = Math.max(0, Math.min(100, state.battingRating + (state.mentality - 50) * 0.2));
-  const powRating = Math.max(0, Math.min(100, state.battingRating + (state.form - 50) * 0.3));
+  const readiness = state.stamina < 30 ? 0.85 : 1;
+  const batRating = Math.max(0, Math.min(100, (state.battingRating + (state.mentality - 50) * 0.2) * readiness));
+  const powRating = Math.max(0, Math.min(100, (state.battingRating + (state.form - 50) * 0.3) * readiness));
   return { batRating: Math.round(batRating), powRating: Math.round(powRating) };
 }
 
@@ -29,7 +30,7 @@ export function generateSupportingCast(quality: 'grassroots' | 'franchise' | 'ic
     id: `cast-${quality}-${i}`,
     name: GENERIC_TEAMMATE_NAMES[i] || `Player ${i+2}`,
     team: 'Supporting Cast',
-    role: i < 6 ? 'Batter' : i < 9 ? 'Bowler' : 'All-Rounder',
+    role: i === 0 ? 'WK' : i < 6 ? 'Batter' : i < 9 ? 'Bowler' : 'All-Rounder',
     battingPosition: i + 2, 
     allowedSlots: [i + 2],
     batRating: randomInRange(min, max),
