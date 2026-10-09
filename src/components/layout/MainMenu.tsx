@@ -173,6 +173,14 @@ export default function MainMenu() {
         </div>
 
         {/* CAREER MODE BANNER */}
+        <div className="w-full max-w-7xl mx-auto mb-5 px-2">
+          <button type="button" onClick={() => useGameStore.getState().setScreen('SCENARIOS')} className="w-full rounded-2xl border border-sky-500/40 bg-gradient-to-r from-sky-950 to-slate-900 p-6 text-left transition-colors hover:border-sky-300">
+            <span className="text-xs font-bold uppercase tracking-widest text-sky-300">6 historical IPL pressure moments</span>
+            <span className="my-2 block text-2xl font-black text-white">Scenarios · Rewrite the finish</span>
+            <span className="block text-sm text-slate-300">Take over mid-match. Chase or defend with the original players, choose your tactics, and see how your finish compares with history.</span>
+            <span className="mt-4 block text-sm font-bold text-sky-300">Explore scenarios →</span>
+          </button>
+        </div>
         <div className="w-full max-w-7xl mx-auto mb-8 px-2 shrink-0">
           <button type="button" aria-label="Start The Long Innings career"
             onClick={() => useGameStore.getState().startCareer()}

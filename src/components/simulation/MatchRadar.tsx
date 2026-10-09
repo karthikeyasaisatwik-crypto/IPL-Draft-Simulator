@@ -5,18 +5,18 @@ import { getFieldPositions } from '../../engine/shotVisualizer';
 
 const shotColor = (ball: BallLog) => ball.isWicket ? '#fb7185' : ball.runs === 6 ? '#c084fc' : ball.runs === 4 ? '#fbbf24' : '#94a3b8';
 
-export default function MatchRadar({ delivery, deliveries = [] }: { delivery?: BallLog; deliveries?: BallLog[] }) {
+export default function MatchRadar({ delivery, deliveries = [], initialOver = 1 }: { delivery?: BallLog; deliveries?: BallLog[]; initialOver?: number }) {
   const [showWheel, setShowWheel] = useState(true);
   const [showLabels, setShowLabels] = useState(false);
   const reduceMotion = useReducedMotion();
   const visual = delivery?.visual;
   const result = delivery ? delivery.isWicket ? 'WICKET' : delivery.runs === 0 ? 'DOT BALL' : `${delivery.runs} RUN${delivery.runs === 1 ? '' : 'S'}` : 'AWAITING DELIVERY';
-  const fielders = visual?.fielders ?? getFieldPositions(1);
+  const fielders = visual?.fielders ?? getFieldPositions(initialOver);
   return (
     <section className="w-full min-w-0 rounded-2xl border border-slate-700 bg-slate-950 p-4" aria-label="Match Radar">
       <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
         <h2 className="font-bold uppercase tracking-widest text-white">Match Radar</h2>
-        <span className="text-emerald-300">{visual?.fieldSetting ?? 'Powerplay'}</span>
+        <span className="text-emerald-300">{visual?.fieldSetting ?? (initialOver <= 6 ? 'Powerplay' : initialOver <= 16 ? 'Middle overs' : 'Death overs')}</span>
       </div>
       <svg viewBox="0 0 100 100" className="mx-auto w-full max-w-[400px]" role="img" aria-label={`Overhead pitch: ${result}, ${visual?.shotDirection ?? 'waiting for play'}`}>
         <ellipse cx="50" cy="50" rx="46" ry="48" fill="#082f27" />

@@ -3,8 +3,8 @@ import type { BallLog } from '../../engine/types';
 import { oversFromBalls } from '../../engine/matchAnalysis';
 import MatchRadar from './MatchRadar';
 
-export default function HighlightReplay({ logs, title, teamName, target, onClose }: {
-  logs: BallLog[]; title: string; teamName: string; target?: number; onClose: () => void;
+export default function HighlightReplay({ logs, title, teamName, target, maxBalls = 120, onClose }: {
+  logs: BallLog[]; title: string; teamName: string; target?: number; maxBalls?: number; onClose: () => void;
 }) {
   const [cursor, setCursor] = useState(0);
   const [playing, setPlaying] = useState(false);
@@ -24,7 +24,7 @@ export default function HighlightReplay({ logs, title, teamName, target, onClose
   return <section className="my-5 rounded-2xl border border-sky-500/40 bg-slate-900 p-3 sm:p-5" aria-label="Highlight replay">
     <div className="mb-3 flex items-start justify-between gap-3"><h3 tabIndex={-1} ref={heading} className="scroll-mt-24 text-base font-bold text-white">{title}</h3><button onClick={onClose} className="shrink-0 rounded-lg border border-slate-600 px-3 py-2 text-xs text-slate-300">Close replay</button></div>
     <p className="mb-2 text-center text-sm text-slate-300">{teamName} · {delivery.currentTotal}/{delivery.currentWickets} · {oversFromBalls(delivery.ballNumber)} ov</p>
-    {target !== undefined && <p className="mb-3 text-center text-xs text-amber-300">Target {target} · {Math.max(0, target - delivery.currentTotal)} needed from {Math.max(0, 120 - delivery.ballNumber)} balls</p>}
+    {target !== undefined && <p className="mb-3 text-center text-xs text-amber-300">Target {target} · {Math.max(0, target - delivery.currentTotal)} needed from {Math.max(0, maxBalls - delivery.ballNumber)} balls</p>}
     <div className="mx-auto max-w-lg"><MatchRadar delivery={delivery} deliveries={logs.slice(0, cursor + 1)} /></div>
     <p className="my-3 text-center text-sm text-slate-200">{delivery.strikerName} · {delivery.isWicket ? `OUT — ${delivery.dismissalText ?? 'Wicket'}` : delivery.runs ? `${delivery.runs} run${delivery.runs === 1 ? '' : 's'}` : 'Dot ball'}</p>
     <div className="flex flex-wrap justify-center gap-2">

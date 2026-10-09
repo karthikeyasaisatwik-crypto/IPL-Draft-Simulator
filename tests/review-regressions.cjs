@@ -22,7 +22,7 @@ function load(file) {
       const create = initializer => {
         if (!initializer) return create;
         const store = require('zustand').create(initializer);
-        return Object.assign(selector => selector(store.getState()), store);
+        return Object.assign((selector = state => state) => selector(store.getState()), store);
       };
       return { create };
     }
@@ -366,3 +366,83 @@ useGameStore.setState({ selectedMode: 'CHASE_300' });
 assert.match(renderToStaticMarkup(React.createElement(ResultScorecard)), /Match analysis &amp; replays/);
 assert(!renderToStaticMarkup(React.createElement(ResultScorecard)).includes('Watch highlight'));
 console.log('Highlight checks passed: partnerships across strike changes, wicket bursts, partial overs, chase pressure, ties, replay bounds, legacy fallback, RPG exclusion and RNG isolation.');
+
+// Historical scenarios must preserve real starting states without depending on
+// today's draft pool; seeded continuations must honour quotas and innings limits.
+const { SCENARIOS } = load('src/data/scenarios.ts');
+const scenarioEngine = load('src/engine/scenarioSimulation.ts');
+const { DEFAULT_COACH_PLANS: scenarioPlans } = load('src/engine/coachTactics.ts');
+const { useScenarioStore } = load('src/store/scenarioStore.ts');
+assert.equal(SCENARIOS.length, 6);
+const expectedStarts = [[150,5,78,171,90], [132,4,108,150,120], [162,4,96,209,120], [179,6,102,200,120], [173,3,102,224,120], [177,7,115,205,120]];
+let scenarioRuns = 0;
+for (const [index, definition] of SCENARIOS.entries()) {
+  const initial = definition.initial;
+  assert.deepEqual([initial.totalRuns, initial.totalWickets, initial.ballsBowled, initial.targetScore, definition.maxBalls], expectedStarts[index]);
+  assert.equal(initial.squad.length, 11);
+  assert.equal(initial.bowlingSquad.length, 11);
+  assert.equal(initial.squad.length, new Set(initial.squad.map(p => p.id)).size);
+  assert(initial.squad.every(p => p.id.startsWith('historic-')));
+  assert.equal(Object.values(initial.bowlerBalls).reduce((a,b) => a+b,0), initial.ballsBowled);
+  assert.equal(initial.playerStats.filter(p => p.dismissal !== 'not out').length, initial.totalWickets);
+  assert(initial.playerStats[initial.strikerIndex].dismissal === 'not out');
+  assert(initial.playerStats[initial.nonStrikerIndex].dismissal === 'not out');
+  const frozen = JSON.stringify(definition);
+  for (const batting of [true,false]) for (let seed = 0; seed < 40; seed++) {
+    let innings = structuredClone(initial), rng = seed, safety = 0;
+    const decisionLog = [];
+    while (!scenarioEngine.scenarioFinished(innings, definition)) {
+      assert(++safety <= 120);
+      const eligible = scenarioEngine.eligibleScenarioBowlers(innings, definition);
+      assert(eligible.length > 0);
+      const next = scenarioEngine.playScenario(definition, innings, rng, batting, seed % 2 ? 100 : 0, scenarioPlans, eligible.at(-1).id, 6);
+      assert.deepEqual(next, scenarioEngine.playScenario(definition, innings, rng, batting, seed % 2 ? 100 : 0, scenarioPlans, eligible.at(-1).id, 6));
+      if (innings.ballsBowled % 6) assert.equal(next.decisions[0].bowler, innings.bowlingSquad.find(p => p.id === innings.currentBowlerId).name);
+      decisionLog.push(...next.decisions);
+      innings = next.state; rng = next.seed;
+      assert(innings.ballsBowled <= definition.maxBalls);
+      assert(Object.values(innings.bowlerBalls).every(b => b <= definition.maxBowlerBalls));
+      if (next.needsBatter) {
+        const chosen = innings.squad.at(-1).id;
+        innings = scenarioEngine.chooseScenarioBatter(innings, 10);
+        assert.equal(innings.squad[innings.nextBatterIndex - 1].id, chosen);
+        assert.equal(innings.squad[innings.strikerIndex].id, innings.playerStats[innings.strikerIndex].player.id);
+        assert.equal(innings.squad[innings.nonStrikerIndex].id, innings.playerStats[innings.nonStrikerIndex].player.id);
+      }
+    }
+    assert.equal(innings.ballLogs.length, innings.ballsBowled - initial.ballsBowled);
+    assert.equal(decisionLog.reduce((n,d) => n+d.runs,0), innings.totalRuns - initial.totalRuns);
+    assert.equal(decisionLog.filter(d => d.wicket).length, innings.totalWickets - initial.totalWickets);
+    assert.equal(JSON.stringify(definition), frozen);
+    scenarioRuns++;
+  }
+}
+const shortFinal = scenarioEngine.playScenario(SCENARIOS[0], SCENARIOS[0].initial, 9, true, 50, scenarioPlans, '', 1);
+assert.equal(shortFinal.state.ballLogs.at(-1).visual.fieldSetting, 'Death overs');
+useScenarioStore.getState().start(SCENARIOS[5].id, false, 42);
+while (!scenarioEngine.scenarioFinished(useScenarioStore.getState().innings, SCENARIOS[5])) useScenarioStore.getState().advance(6);
+const completed = JSON.stringify(useScenarioStore.getState().progress);
+useScenarioStore.getState().advance(6);
+assert.equal(JSON.stringify(useScenarioStore.getState().progress), completed);
+const recorded = JSON.stringify(useScenarioStore.getState().innings.ballLogs);
+useScenarioStore.getState().start(SCENARIOS[5].id, false, 42);
+while (!scenarioEngine.scenarioFinished(useScenarioStore.getState().innings, SCENARIOS[5])) useScenarioStore.getState().advance(6);
+assert.equal(JSON.stringify(useScenarioStore.getState().innings.ballLogs), recorded);
+// A tie is not credited as a bowling win; closed storage cannot block completion.
+useScenarioStore.getState().start(SCENARIOS[5].id, false, 42);
+useScenarioStore.setState({ innings: { ...structuredClone(SCENARIOS[5].initial), totalRuns: 204, ballsBowled: 120 } });
+assert(scenarioEngine.scenarioFinished(useScenarioStore.getState().innings, SCENARIOS[5]));
+const tieProgress = JSON.stringify(useScenarioStore.getState().progress);
+useScenarioStore.getState().advance(1);
+assert.equal(JSON.stringify(useScenarioStore.getState().progress), tieProgress);
+const ScenariosScreen = load('src/components/scenarios/ScenariosScreen.tsx').default;
+assert.match(renderToStaticMarkup(React.createElement(ScenariosScreen)), /Match tied/);
+const storedSetItem = localStorage.setItem;
+localStorage.setItem = () => { throw new Error('Storage denied'); };
+useScenarioStore.getState().start(SCENARIOS[5].id, false, 42);
+while (!scenarioEngine.scenarioFinished(useScenarioStore.getState().innings, SCENARIOS[5])) useScenarioStore.getState().advance(6);
+assert.equal(useScenarioStore.getState().storageWarning, true);
+localStorage.setItem = storedSetItem;
+useScenarioStore.getState().leave();
+assert.match(renderToStaticMarkup(React.createElement(ScenariosScreen)), /IPL Pressure Scenarios/);
+console.log(`Scenario checks passed: six verified snapshots, ${scenarioRuns} seeded attempts, quotas, shortened innings, mid-over lock, batter changes, repeatable retries, completion guard, tie UI and storage fallback.`);

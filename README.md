@@ -47,3 +47,23 @@ Before the first ball, optionally enable **player traits** for both teams and op
 After an H2H (including pass-and-play), Chase 300, or Coach match, click **Match analysis & replays** on the scorecard. The separate analysis window includes turning points, costly overs, the three largest partnerships, and explanations of score or required-rate changes. Select **Watch highlight** to replay the recorded passage, or **Replay full innings** for the complete innings. Pause, step backwards/forwards, scrub to a delivery, or switch playback speed. **Back to scorecard** or Escape closes the window.
 
 Analysis reads the completed result without rerunning the simulation. Older results lacking delivery logs retain over summaries but cannot offer detailed replays. RPG screens do not include this feature.
+
+## Historical pressure scenarios
+
+Choose **Scenarios · Rewrite the finish** in the main menu. Six IPL moments feature
+the 2014, 2016, 2019 and 2023 finals, Tewatia's 2020 chase, and Rinku's 2023 finish.
+Choose either side, set batting/bowling plans, select eligible bowlers, and choose
+incoming batters after wickets. Play an over at a time or individual deliveries
+in the final two overs. Historical lineups are bundled separately from modern
+draft players, including retired players and impact substitutions.
+
+The result compares your finish with history. **Match analysis & replays** opens
+a separate dialog containing turning points, costly overs, partnerships since
+takeover, decision history and replay controls. Completed attempts, wins and best
+score margins are saved locally for each side. Same-condition retries preserve
+the random seed; new variations change it. Simulation probabilities remain based
+on the existing Coach engine, with estimated ratings and neutral pitch effects.
+
+See [data sources, attribution and engine limitations](docs/scenario-data.md).
+`npm test` includes 480 seeded scenario continuations alongside existing gameplay
+regressions. Scenario code and historical data load on demand.

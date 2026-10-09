@@ -14,6 +14,7 @@ export function getBattingStyle(p: Player): 'RHB' | 'LHB' {
 }
 
 export function getBowlingStyle(p: Player): 'PACE' | 'OFF_SPIN' | 'SLA' | 'LEG_SPIN' {
+  if (p.bowlingStyle) return p.bowlingStyle;
   const hash = p.id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
   if (p.name.includes('Bumrah') || p.name.includes('Shami') || p.name.includes('Boult')) return 'PACE';
   if (p.name.includes('Ashwin')) return 'OFF_SPIN';

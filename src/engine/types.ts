@@ -9,6 +9,7 @@ import type { SkillEffect } from './careerTypes';
 export type PlayerRole = 'Batter' | 'All-Rounder' | 'Bowler' | 'WK';
 
 export interface Player {
+  bowlingStyle?: 'PACE' | 'OFF_SPIN' | 'SLA' | 'LEG_SPIN';
   id: string;
   name: string;
   team: string;          // IPL franchise (for flavor/UI grouping)

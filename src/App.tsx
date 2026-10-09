@@ -11,6 +11,9 @@ import RookieHub from './components/career/RookieHub';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowLeft } from 'lucide-react';
 import './index.css';
+import { lazy, Suspense } from 'react';
+
+const ScenariosScreen = lazy(() => import('./components/scenarios/ScenariosScreen'));
 
 // ============================================================
 // PLACEHOLDER SCREENS
@@ -79,7 +82,9 @@ export default function App() {
       */}
       <div className="flex-1 overflow-y-auto w-full flex flex-col items-center">
         <AnimatePresence mode="wait">
-          {currentScreen === 'MAIN_MENU' ? (
+          {currentScreen === 'SCENARIOS' ? (
+            <Suspense fallback={<p className="p-8 text-slate-300">Loading historical scenarios…</p>}><ScenariosScreen /></Suspense>
+          ) : currentScreen === 'MAIN_MENU' ? (
         <motion.div
           key="main-menu"
           className="flex-1 flex flex-col items-center w-full"

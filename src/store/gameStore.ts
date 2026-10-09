@@ -9,7 +9,7 @@ import { simulateH2HMatch } from '../engine/h2hSimulation';
 // APPLICATION SCREENS
 // ============================================================
 
-export type AppScreen = 'MAIN_MENU' | 'DRAFT_SETUP' | 'DRAFT' | 'COACH_DASHBOARD' | 'TICKER' | 'SIMULATION' | 'MATCH' | 'RESULT' | 'CAMPAIGN' | 'CAREER_HUB';
+export type AppScreen = 'MAIN_MENU' | 'SCENARIOS' | 'DRAFT_SETUP' | 'DRAFT' | 'COACH_DASHBOARD' | 'TICKER' | 'SIMULATION' | 'MATCH' | 'RESULT' | 'CAMPAIGN' | 'CAREER_HUB';
 
 const SQUAD_SIZE = 11;
 

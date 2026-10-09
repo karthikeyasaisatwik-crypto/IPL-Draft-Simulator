@@ -149,13 +149,14 @@ export function selectOverBowler(
   lastBowlerId: string | null,
   preferredBowlerIds: string[] = [],
   isFieldingCoach: boolean = false,
+  maxBowlerBalls: number = 24,
 ): Player {
   const specialistBowlers = bowlingSquad.filter(p => p.role === 'Bowler' || p.role === 'All-Rounder');
   const pool = specialistBowlers.length > 0 ? specialistBowlers : bowlingSquad;
 
   const canBowl = (player: Player) => {
     const balls = bowlerBalls[player.id] || 0;
-    const underMaxQuota = balls < 24; // Max 4 overs (24 balls)
+    const underMaxQuota = balls < maxBowlerBalls;
     const notConsecutive = player.id !== lastBowlerId;
     return underMaxQuota && notConsecutive;
   };
@@ -215,6 +216,7 @@ export function simulateCoachPhase(
   preferredBowlers: string[] = [],
   keyMatchups: Matchup[] = [],
   plans: CoachPlans = DEFAULT_COACH_PLANS,
+  options: { random?: () => number; maxBalls?: number; maxBowlerBalls?: number; preferBowler?: boolean } = {},
 ): PartialInningsState {
   // Deep clone the state so we don't mutate the original
   const s: PartialInningsState = {
@@ -227,7 +229,8 @@ export function simulateCoachPhase(
   };
 
   const mod = getTacticsMod(tactics, isBatting);
-  const MAX_BALLS = 120;
+  const MAX_BALLS = options.maxBalls ?? 120;
+  const random = options.random ?? Math.random;
 
   let currentBowler: Player | null = s.currentBowlerId
     ? (s.bowlingSquad.find(p => p.id === s.currentBowlerId) || null)
@@ -244,7 +247,8 @@ export function simulateCoachPhase(
         s.bowlerBalls,
         s.lastBowlerId,
         preferredBowlers,
-        !isBatting, // User is coaching the fielding team when isBatting is false
+        !isBatting || options.preferBowler === true,
+        options.maxBowlerBalls ?? 24,
       );
       s.currentBowlerId = currentBowler.id;
     }
@@ -254,7 +258,7 @@ export function simulateCoachPhase(
     const overNumber = Math.floor((ball - 1) / 6) + 1;
     const isPowerplay = overNumber <= 6;
     const isMiddleOvers = overNumber >= 7 && overNumber <= 15;
-    const isDeathOvers = overNumber >= 16;
+    const isDeathOvers = overNumber >= 16 || ball > MAX_BALLS - 24;
 
     // Required run rate calculation
     let rrr = 8.0;
@@ -373,7 +377,7 @@ export function simulateCoachPhase(
     probSix /= totalProb;
 
     // --- Roll ---
-    const roll = Math.random();
+    const roll = random();
     let runsOnBall = 0;
     let isWicket = false;
 
@@ -382,7 +386,7 @@ export function simulateCoachPhase(
     } else if (roll < probWicket + probDot) {
       runsOnBall = 0;
     } else if (roll < probWicket + probDot + probOneTwo) {
-      runsOnBall = Math.random() > 0.3 ? 1 : 2;
+      runsOnBall = random() > 0.3 ? 1 : 2;
     } else if (roll < probWicket + probDot + probOneTwo + probFour) {
       runsOnBall = 4;
     } else {
@@ -397,7 +401,7 @@ export function simulateCoachPhase(
     striker.balls++;
     if (isWicket) {
       s.totalWickets++;
-      striker.dismissal = generateDismissalText(striker.player.batRating, currentBowler, s.bowlingSquad);
+      striker.dismissal = generateDismissalText(striker.player.batRating, currentBowler, s.bowlingSquad, random);
       s.currentOverLog.push('W');
       if (s.totalWickets < 10 && s.nextBatterIndex < 11) {
         s.strikerIndex = s.nextBatterIndex;
@@ -566,14 +570,14 @@ export function buildCoachMatchResult(
 // Uses the actual active bowler to credit dismissals accurately.
 // ============================================================
 
-function generateDismissalText(batRating: number, bowler: Player | null, bowlingSquad: Player[]): string {
-  const assignedBowler = bowler || bowlingSquad[Math.floor(Math.random() * bowlingSquad.length)];
+function generateDismissalText(batRating: number, bowler: Player | null, bowlingSquad: Player[], random = Math.random): string {
+  const assignedBowler = bowler || bowlingSquad[Math.floor(random() * bowlingSquad.length)];
   const fielderPool = bowlingSquad.filter(p => p.id !== assignedBowler.id);
-  const fielder = fielderPool.length > 0 ? fielderPool[Math.floor(Math.random() * fielderPool.length)] : assignedBowler;
+  const fielder = fielderPool.length > 0 ? fielderPool[Math.floor(random() * fielderPool.length)] : assignedBowler;
   const oppKeeper = bowlingSquad.find(p => p.role === 'WK');
   const keeperName = oppKeeper ? oppKeeper.name : fielder.name;
 
-  const rand = Math.random();
+  const rand = random();
   if (batRating < 60) {
     return rand > 0.5 ? `b ${assignedBowler.name}` : `lbw b ${assignedBowler.name}`;
   } else {
