@@ -238,6 +238,49 @@ try {
   const v = createDeliveryVisual(sample);
   assert(Math.abs((v.shotEnd.x - 50) ** 2 / 42 ** 2 + (v.shotEnd.y - 50) ** 2 / 44 ** 2 - 1) < 0.00001);
   assert.equal(createDeliveryVisual({ ...sample, isWicket: true, dismissalText: 'b Bowler' }).shotEnd, null);
+  const { sampleDelivery } = load('src/engine/deliveryAnimation.ts');
+  const boundaryRadius = p => (p.x - 50) ** 2 / 42 ** 2 + (p.y - 50) ** 2 / 44 ** 2;
+  for (const runs of [0, 1, 2, 3, 4, 6]) {
+    const ball = { ...sample, runs };
+    const visual = createDeliveryVisual(ball);
+    const before = JSON.stringify(visual);
+    for (let step = 0; step <= 100; step++) {
+      const frame = sampleDelivery(ball, visual, step / 100);
+      assert(Number.isFinite(frame.position.x) && Number.isFinite(frame.position.y));
+      assert(frame.strikerY >= 37 && frame.strikerY <= 62);
+      if (step < 40) assert(!frame.contact);
+    }
+    assert.equal(JSON.stringify(visual), before, 'Animation must not mutate a recorded delivery');
+    const final = sampleDelivery(ball, visual, 1);
+    assert.equal(final.strikerY, runs === 1 || runs === 3 ? 37 : 62);
+    if (runs === 6) {
+      assert(boundaryRadius(visual.shotEnd) > 1);
+      assert.equal(visual.animation.reaction, undefined, 'Six cannot be collected by a fielder');
+      assert(sampleDelivery(ball, visual, .57).height > 2);
+    } else if (runs < 4) {
+      const meeting = sampleDelivery(ball, visual, .74);
+      assert.deepEqual(meeting.position, meeting.fielder, 'Ball and fielder must meet before the throw');
+      assert.deepEqual(final.position, { x: 50, y: 69 });
+    } else assert.equal(visual.animation.reaction.action, 'chase');
+  }
+  for (const dismissalText of ['c Fielder b Bowler', 'c & b Bowler', 'b Bowler', 'lbw b Bowler', 'st Keeper b Bowler', 'run out (Fielder)']) {
+    const ball = { ...sample, runs: 0, isWicket: true, dismissalText };
+    const visual = createDeliveryVisual(ball);
+    const final = sampleDelivery(ball, visual, 1);
+    assert(final.wicket);
+    if (dismissalText.startsWith('c ')) assert.deepEqual(final.position, final.fielder);
+    else assert.deepEqual(final.position, { x: 50, y: 62 });
+  }
+  const yorker = createDeliveryVisual(sample, { bowlingPlan: 'YORKERS', bowlingStyle: 'PACE', phaseOver: 20 });
+  const short = createDeliveryVisual(sample, { bowlingPlan: 'SHORT', bowlingStyle: 'PACE' });
+  assert(yorker.bounce.y > short.bounce.y);
+  assert.equal(yorker.fieldSetting, 'Death overs');
+  assert.notDeepEqual(yorker.fielders, short.fielders);
+  const spinYorker = createDeliveryVisual(sample, { bowlingPlan: 'YORKERS', bowlingStyle: 'LEG_SPIN' });
+  assert.equal(spinYorker.animation.deliveryLabel, 'Spin delivery');
+  assert.deepEqual(spinYorker.fielders, createDeliveryVisual(sample).fielders);
+  const { animation: _animation, ...oldVisual } = v;
+  assert(Number.isFinite(sampleDelivery(sample, oldVisual, .5).position.x), 'Old recorded geometry remains playable');
 } finally { Math.random = random; }
 const legacy = { ...chase, innings: chase.innings.map(({ ballLogs: _ballLogs, ...inn }) => inn) };
 assert.equal(buildPlaybackFrames(legacy).at(-1).runs, chase.innings[0].totalRuns);

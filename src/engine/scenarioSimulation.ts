@@ -2,7 +2,6 @@ import { simulateCoachPhase } from './coachSimulation';
 import type { CoachPlans } from './coachTactics';
 import type { PartialInningsState } from './types';
 import type { ScenarioDefinition, ScenarioDecision } from './scenarioTypes';
-import { getFieldPositions } from './shotVisualizer';
 
 export const scenarioFinished = (s: PartialInningsState, scenario: ScenarioDefinition) =>
   s.totalRuns >= s.targetScore! || s.totalWickets >= 10 || s.ballsBowled >= scenario.maxBalls;
@@ -44,10 +43,6 @@ export function playScenario(scenario: ScenarioDefinition, initial: PartialInnin
     const previousRuns = state.totalRuns;
     state = simulateCoachPhase(state, state.ballsBowled + 1, state.ballsBowled + 1, tactics, 1, batting,
       [bowler.id], [], plans, { random: rng.next, maxBalls: scenario.maxBalls, maxBowlerBalls: scenario.maxBowlerBalls, preferBowler: true });
-    const delivery = state.ballLogs?.at(-1);
-    if (delivery?.visual && scenario.maxBalls < 120 && state.ballsBowled > scenario.maxBalls - 24) {
-      delivery.visual = { ...delivery.visual, fielders: getFieldPositions(20), fieldSetting: 'Death overs' };
-    }
     decisions.push({ ball: state.ballsBowled, pair, bowler: bowler.name, tactics, plans: { ...plans },
       runs: state.totalRuns - previousRuns, wicket: state.totalWickets > previousWickets });
     if (state.totalWickets > previousWickets && !scenarioFinished(state, scenario)) {

@@ -25,7 +25,7 @@ export default function HighlightReplay({ logs, title, teamName, target, maxBall
     <div className="mb-3 flex items-start justify-between gap-3"><h3 tabIndex={-1} ref={heading} className="scroll-mt-24 text-base font-bold text-white">{title}</h3><button onClick={onClose} className="shrink-0 rounded-lg border border-slate-600 px-3 py-2 text-xs text-slate-300">Close replay</button></div>
     <p className="mb-2 text-center text-sm text-slate-300">{teamName} · {delivery.currentTotal}/{delivery.currentWickets} · {oversFromBalls(delivery.ballNumber)} ov</p>
     {target !== undefined && <p className="mb-3 text-center text-xs text-amber-300">Target {target} · {Math.max(0, target - delivery.currentTotal)} needed from {Math.max(0, maxBalls - delivery.ballNumber)} balls</p>}
-    <div className="mx-auto max-w-lg"><MatchRadar delivery={delivery} deliveries={logs.slice(0, cursor + 1)} /></div>
+    <div className="mx-auto max-w-lg"><MatchRadar delivery={delivery} deliveries={logs.slice(0, cursor + 1)} durationMs={fast ? 400 : 850} paused={!playing} /></div>
     <p className="my-3 text-center text-sm text-slate-200">{delivery.strikerName} · {delivery.isWicket ? `OUT — ${delivery.dismissalText ?? 'Wicket'}` : delivery.runs ? `${delivery.runs} run${delivery.runs === 1 ? '' : 's'}` : 'Dot ball'}</p>
     <div className="flex flex-wrap justify-center gap-2">
       <button className="ticker-btn" onClick={() => { if (cursor === logs.length - 1) setCursor(0); setPlaying(p => !p); }}>{playing ? 'Pause replay' : cursor === logs.length - 1 ? 'Replay again' : 'Play replay'}</button>

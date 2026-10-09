@@ -38,7 +38,7 @@ export default function ProgressTicker() {
           <p className="text-sm text-slate-400">{overs} OV · RR {frame.balls ? (frame.runs * 6 / frame.balls).toFixed(2) : '0.00'}{chasing && ` · Need ${Math.max(0, target - frame.runs)} off ${Math.max(0, 120 - frame.balls)} balls`}</p>
         </header>
         <div className="grid gap-5 p-4 md:grid-cols-2">
-          <MatchRadar key={frame.inningsIndex} delivery={frame.delivery} deliveries={innings.ballLogs?.slice(0, frame.deliveriesShown)} />
+          <MatchRadar key={frame.inningsIndex} delivery={frame.delivery} deliveries={innings.ballLogs?.slice(0, frame.deliveriesShown)} durationMs={fast ? 120 : 650} paused={paused} />
           <section className="flex min-w-0 flex-col justify-end gap-3 rounded-2xl border border-slate-700 bg-slate-950 p-4" aria-label="Match commentary">
             <h2 className="mb-auto text-xs font-bold uppercase tracking-widest text-slate-400">Ball by ball</h2>
             {logs.map((log, i) => <p key={cursor - logs.length + i} className={`rounded-xl border border-slate-800 p-3 text-sm ${log.delivery?.isWicket ? 'text-rose-400' : log.isEnd ? 'text-amber-400' : 'text-slate-300'}`}>{log.commentary}</p>)}

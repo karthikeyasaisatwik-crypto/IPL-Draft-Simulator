@@ -202,6 +202,13 @@ export interface DeliveryVisual {
   shotDirection: string;
   fielders: FieldPosition[];
   fieldSetting: 'Powerplay' | 'Middle overs' | 'Death overs';
+  // Optional so saved replays from earlier versions remain readable.
+  animation?: {
+    deliveryLabel: string;
+    fieldLabel: string;
+    loft: number;
+    reaction?: { name: string; target: { x: number; y: number }; action: 'catch' | 'collect' | 'chase' | 'runout' | 'stumping' };
+  };
 }
 
 export interface OverSummary {

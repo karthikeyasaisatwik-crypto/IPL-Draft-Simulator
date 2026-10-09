@@ -1,6 +1,7 @@
 import { DEFAULT_COACH_PLANS, getCoachPlanModifiers } from './coachTactics';
 import type { CoachPlans } from './coachTactics';
 import { recordDelivery } from './shotVisualizer';
+import { getBowlingStyle } from './matchupMatrix';
 import { getMatchPerkMultiplier } from './matchPerks';
 // ============================================================
 // COACH MODE — CHUNKED SIMULATION ENGINE
@@ -426,6 +427,10 @@ export function simulateCoachPhase(
       ballNumber: ball, overNumber, strikerName: striker.player.name, bowlerName: currentBowler?.name ?? 'Opposition attack',
       runs: runsOnBall, isWicket, dismissalText: isWicket ? striker.dismissal : undefined,
       currentTotal: s.totalRuns, currentWickets: s.totalWickets,
+    }, {
+      phaseOver: MAX_BALLS < 120 && isDeathOvers ? 20 : overNumber,
+      bowlingPlan: isBatting ? 'STOCK' : plans.bowling,
+      bowlingStyle: currentBowler ? getBowlingStyle(currentBowler) : undefined,
     }));
 
     // End of over or innings

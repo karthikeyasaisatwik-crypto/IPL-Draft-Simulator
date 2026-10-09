@@ -18,7 +18,7 @@ export default function CoachRadarReplay({ logs, teamName }: { logs: BallLog[]; 
   return (
     <div className="mx-auto mb-6 w-full max-w-lg">
       <p className="mb-3 text-center text-sm text-slate-300">{teamName} · Phase replay · {delivery.currentTotal}/{delivery.currentWickets} ({Math.floor(delivery.ballNumber / 6)}.{delivery.ballNumber % 6} ov)</p>
-      <MatchRadar delivery={delivery} deliveries={logs.slice(0, cursor + 1)} />
+      <MatchRadar delivery={delivery} deliveries={logs.slice(0, cursor + 1)} durationMs={650} paused={!playing} />
       <div className="mt-3 flex flex-wrap justify-center gap-2">
         <button className="ticker-btn" onClick={() => { if (cursor === logs.length - 1) setCursor(0); setPlaying(p => !p); }}>{playing ? 'Pause replay' : 'Play phase'}</button>
         <button className="ticker-btn" disabled={cursor >= logs.length - 1} onClick={() => { setPlaying(false); setCursor(i => i + 1); }}>Next ball</button>

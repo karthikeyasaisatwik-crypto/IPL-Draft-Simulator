@@ -25,9 +25,9 @@ export default function SupportButton() {
       type="button"
       aria-haspopup="dialog"
       onClick={() => { setCopyStatus(''); dialog.current?.showModal(); }}
-      className="mb-5 inline-flex min-h-11 items-center justify-center gap-2 rounded-full border border-amber-500/30 bg-amber-500/10 px-5 py-2.5 text-sm font-bold text-amber-300 transition-colors hover:border-amber-400/60 hover:bg-amber-500/20"
+      className="mb-3 inline-flex min-h-10 items-center justify-center gap-1.5 rounded-full border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs font-bold text-amber-300 transition-colors hover:border-amber-400/60 hover:bg-amber-500/20"
     >
-      <Coffee className="h-4 w-4" aria-hidden="true" />
+      <Coffee className="h-3.5 w-3.5" aria-hidden="true" />
       Support the developer
     </button>
     <dialog

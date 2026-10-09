@@ -3,10 +3,12 @@ import { useGameStore } from '../../store/gameStore';
 import { motion } from 'framer-motion';
 import { ShieldAlert, Trophy, ArrowRight, User } from 'lucide-react';
 import type { InningsResult, Player } from '../../engine/types';
+import Chase300ShareCard from './Chase300ShareCard';
 
 export default function Scorecard() {
   const selectedMode = useGameStore(s => s.selectedMode);
   const result = useGameStore((s) => s.lastMatchResult);
+  const chase300HighScore = useGameStore(s => s.chase300HighScore);
   const draftedSquad = useGameStore((s) => s.draftedSquad);
   const resetToMenu = useGameStore((s) => s.resetToMenu);
 
@@ -54,6 +56,7 @@ export default function Scorecard() {
         )}
       </header>
       {selectedMode !== 'CAREER_MOMENT' && <MatchAnalysisButton result={result} />}
+      {selectedMode === 'CHASE_300' && <Chase300ShareCard result={result} highScore={chase300HighScore} />}
 
       {/* USER PENALTY BANNERS */}
       {userMissingWk && (
